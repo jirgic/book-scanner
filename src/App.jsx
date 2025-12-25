@@ -43,13 +43,21 @@ export default function App() {
   const handleStartCamera = useCallback(async () => {
     try {
       if (scanMode === 'barcode') {
-        // Initialize and start barcode scanner
-        await barcodeScanner.initialize();
+        // Set mode to camera first to render the BarcodeView component
         setMode('camera');
 
-        // Start scanning after a short delay to allow UI to render
+        // Initialize and start barcode scanner after a delay to ensure DOM is ready
         setTimeout(async () => {
           try {
+            console.log('Initializing barcode scanner...');
+            const scannerElement = document.getElementById('barcode-scanner');
+            console.log('Scanner element exists:', !!scannerElement);
+
+            // Initialize the scanner
+            await barcodeScanner.initialize();
+            console.log('Barcode scanner initialized');
+
+            // Start scanning
             await barcodeScanner.startScanning(
               async (decodedText, decodedResult) => {
                 console.log('Barcode detected:', decodedText);
@@ -93,10 +101,13 @@ export default function App() {
                 qrbox: { width: 250, height: 100 },
               }
             );
+            console.log('Barcode scanner started successfully');
           } catch (err) {
             console.error('Failed to start barcode scanning:', err);
+            alert(`Barcode scanner error: ${err.message || err}`);
+            setMode('idle');
           }
-        }, 100);
+        }, 500);
       } else {
         // Start regular camera for OCR
         await scanner.camera.start();
@@ -104,6 +115,7 @@ export default function App() {
       }
     } catch (err) {
       console.error('Failed to start camera:', err);
+      alert(`Camera error: ${err.message || err}`);
     }
   }, [scanMode, scanner, barcodeScanner, setMode, setSearchQuery]);
 
@@ -120,12 +132,52 @@ export default function App() {
   const handleUpload = useCallback(
     async (file) => {
       try {
-        await scanner.processUploadedImage(file);
+        if (scanMode === 'barcode') {
+          // Initialize barcode scanner if needed
+          await barcodeScanner.initialize();
+
+          // Scan the uploaded image for barcodes
+          setMode('processing');
+
+          try {
+            const decodedText = await barcodeScanner.scanFile(file);
+            console.log('Barcode detected from image:', decodedText);
+
+            // Check if it's an ISBN
+            if (barcodeScanner.isISBN(decodedText)) {
+              const isbn = barcodeScanner.formatISBN(decodedText);
+              setSearchQuery(isbn);
+
+              try {
+                await scanner.search.searchByISBNAsync(isbn);
+              } catch (error) {
+                console.error('ISBN search failed:', error);
+              }
+            } else {
+              // Not an ISBN, but still search with the code
+              setSearchQuery(decodedText);
+
+              try {
+                await scanner.search.searchAsync(decodedText);
+              } catch (error) {
+                console.error('Search failed:', error);
+              }
+            }
+
+            setMode('results');
+          } catch (error) {
+            console.error('Barcode scanning failed:', error);
+            setMode('idle');
+          }
+        } else {
+          // Use OCR for text recognition
+          await scanner.processUploadedImage(file);
+        }
       } catch (err) {
         console.error('Upload processing failed:', err);
       }
     },
-    [scanner]
+    [scanner, scanMode, barcodeScanner, setMode, setSearchQuery]
   );
 
   // Handle manual search
