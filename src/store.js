@@ -105,6 +105,10 @@ export const useSettingsStore = create(
       preferredCamera: 'environment', // 'environment' | 'user'
       setPreferredCamera: (camera) => set({ preferredCamera: camera }),
 
+      // Scan Mode Settings
+      scanMode: 'ocr', // 'ocr' | 'barcode'
+      setScanMode: (mode) => set({ scanMode: mode }),
+
       // UI Settings
       showOcrText: true,
       setShowOcrText: (show) => set({ showOcrText: show }),
