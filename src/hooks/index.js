@@ -2,6 +2,7 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useAppStore, useSettingsStore } from '../store';
 import * as openLibrary from '../services/openLibrary';
+import * as googleBooks from '../services/googleBooks';
 import * as ocr from '../services/ocr';
 import * as barcode from '../services/barcode';
 
@@ -357,15 +358,15 @@ export function useBarcodeScanner() {
 }
 
 /**
- * Hook for book search
+ * Hook for book search - uses Google Books API with database caching
  */
 export function useBookSearch() {
   const { setSearchResults, setIsSearching, setSearchError } = useAppStore();
 
   const searchMutation = useMutation({
     mutationFn: async (query) => {
-      const result = await openLibrary.searchBooks(query, { limit: 20 });
-      return result.books;
+      const books = await googleBooks.searchBooks(query, 20);
+      return books;
     },
     onMutate: () => {
       setIsSearching(true);
@@ -383,7 +384,7 @@ export function useBookSearch() {
 
   const searchByISBNMutation = useMutation({
     mutationFn: async (isbn) => {
-      const book = await openLibrary.searchByISBN(isbn);
+      const book = await googleBooks.searchByISBN(isbn);
       return book;
     },
     onMutate: () => {
@@ -487,7 +488,7 @@ export function useScanner() {
       });
 
       // Prepare search query
-      const query = openLibrary.prepareSearchQuery(result.text);
+      const query = googleBooks.prepareSearchQuery(result.text);
       setSearchQuery(query);
 
       // Auto search if enabled and we have text
@@ -537,7 +538,7 @@ export function useScanner() {
         });
 
         // Prepare search query
-        const query = openLibrary.prepareSearchQuery(result.text);
+        const query = googleBooks.prepareSearchQuery(result.text);
         setSearchQuery(query);
 
         // Auto search if enabled

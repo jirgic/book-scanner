@@ -1,8 +1,12 @@
 import { getCoverUrl } from '../services/openLibrary';
+import { getCoverImageUrl } from '../services/googleBooks';
 import { StarRating, BookOpen } from './Icons';
 
 export default function BookCard({ book, onClick, className = '' }) {
-  const coverUrl = getCoverUrl(book.coverId, 'M');
+  // Support both Open Library and Google Books formats
+  const coverUrl = book.source === 'google-books'
+    ? getCoverImageUrl(book, 'medium')
+    : getCoverUrl(book.coverId, 'M');
 
   return (
     <button

@@ -1,12 +1,15 @@
 {
   "name": "book-scanner",
   "version": "1.0.0",
-  "description": "Scan book covers and spines with OCR to find book information from Open Library",
+  "description": "Scan book covers and spines with OCR to find book information from Google Books API",
   "private": true,
   "type": "module",
   "homepage": "https://YOUR_USERNAME.github.io/book-scanner/",
   "scripts": {
     "dev": "vite",
+    "server": "cd server && npm start",
+    "server:dev": "cd server && npm run dev",
+    "server:install": "cd server && npm install",
     "build": "vite build",
     "preview": "vite preview",
     "lint": "eslint src --ext js,jsx --report-unused-disable-directives --max-warnings 0",

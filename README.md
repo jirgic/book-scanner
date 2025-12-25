@@ -1,6 +1,6 @@
 # 📚 BookLens - Book Scanner App
 
-A modern web application that uses your device's camera and OCR (Optical Character Recognition) to scan book covers and spines, then searches the Open Library database for book information, ratings, and more.
+A modern web application that uses your device's camera and OCR (Optical Character Recognition) to scan book covers and spines, then searches the Google Books API for book information, ratings, and more. Features a caching backend to minimize API calls and improve performance.
 
 ## 🌐 Live Demo
 
@@ -13,7 +13,9 @@ A modern web application that uses your device's camera and OCR (Optical Charact
 - **📷 Camera Scanning** - Use your device camera to capture book covers or spines
 - **📊 Barcode Scanner** - Scan ISBN barcodes (EAN-13, UPC) for instant book lookup
 - **🔍 OCR Text Recognition** - Powered by Tesseract.js for accurate text extraction
-- **📖 Open Library Integration** - Search millions of books with ratings and metadata
+- **📖 Google Books Integration** - Search millions of books with ratings and metadata
+- **💾 Smart Caching** - Backend database caches all API results for 30 days
+- **⚡ Fast Lookups** - Cache-first approach minimizes API calls and improves speed
 - **📚 Personal Library** - Save books to your personal collection (persisted locally)
 - **⚙️ Customizable Settings** - Multiple OCR languages, camera preferences, scan modes, and more
 - **📱 Mobile-First Design** - Responsive UI optimized for mobile devices
@@ -34,17 +36,29 @@ git clone https://github.com/yourusername/book-scanner.git
 cd book-scanner
 ```
 
-2. Install dependencies:
+2. Install frontend dependencies:
 ```bash
 npm install
 ```
 
-3. Start the development server:
+3. Install backend server dependencies:
+```bash
+npm run server:install
+```
+
+4. Start the backend server (in one terminal):
+```bash
+npm run server:dev
+```
+
+5. Start the frontend development server (in another terminal):
 ```bash
 npm run dev
 ```
 
-4. Open your browser to `http://localhost:3000`
+6. Open your browser to `http://localhost:5173`
+
+The backend server runs on port 3001 and handles Google Books API calls with caching.
 
 ### Building for Production
 
@@ -60,11 +74,21 @@ The built files will be in the `dist` directory.
 book-scanner/
 ├── public/
 │   └── favicon.svg
+├── server/               # Backend API server
+│   ├── services/
+│   │   └── googleBooks.js # Google Books API client
+│   ├── routes/
+│   │   └── books.js      # API routes
+│   ├── database.js       # SQLite database layer
+│   ├── index.js          # Server entry point
+│   ├── package.json
+│   └── README.md         # Server documentation
 ├── src/
 │   ├── components/       # React components
 │   │   ├── BookCard.jsx
 │   │   ├── BookDetail.jsx
 │   │   ├── CameraView.jsx
+│   │   ├── BarcodeView.jsx
 │   │   ├── Header.jsx
 │   │   ├── Icons.jsx
 │   │   ├── LibraryView.jsx
@@ -76,12 +100,15 @@ book-scanner/
 │   │   └── index.js
 │   ├── services/         # API and service modules
 │   │   ├── ocr.js        # Tesseract.js OCR service
-│   │   └── openLibrary.js # Open Library API
+│   │   ├── barcode.js    # Barcode scanning service
+│   │   ├── googleBooks.js # Google Books API client
+│   │   └── openLibrary.js # Open Library API (legacy)
 │   ├── styles/
 │   │   └── index.css     # Tailwind CSS styles
 │   ├── App.jsx           # Main application component
 │   ├── main.jsx          # Entry point
 │   └── store.js          # Zustand state management
+├── .env.example          # Environment variables template
 ├── index.html
 ├── package.json
 ├── tailwind.config.js
@@ -91,6 +118,7 @@ book-scanner/
 
 ## 🛠️ Tech Stack
 
+### Frontend
 - **React 18** - UI framework
 - **Vite** - Build tool and dev server
 - **Tailwind CSS** - Utility-first styling
@@ -100,16 +128,38 @@ book-scanner/
 - **html5-qrcode** - Barcode and QR code scanner
 - **Lucide React** - Icon library
 
+### Backend
+- **Node.js** - Runtime environment
+- **Express** - Web framework
+- **better-sqlite3** - Fast SQLite database
+- **Google Books API** - Book data source
+
 ## 📡 APIs Used
 
-### Open Library API
+### Google Books API
 
-- **Search**: `https://openlibrary.org/search.json`
-- **Book Details**: `https://openlibrary.org/works/{id}.json`
-- **Covers**: `https://covers.openlibrary.org/b/id/{id}-{size}.jpg`
-- **Ratings**: `https://openlibrary.org/works/{id}/ratings.json`
+The backend server integrates with Google Books API with intelligent caching:
 
-[Open Library API Documentation](https://openlibrary.org/developers/api)
+- **Search**: Search books by text query
+- **ISBN Lookup**: Find books by ISBN-10 or ISBN-13
+- **Book Details**: Get comprehensive book information
+
+**Caching Strategy:**
+- All API responses are cached in SQLite for 30 days
+- Cache-first approach: database is checked before making API calls
+- Reduces API usage and improves response times
+
+[Google Books API Documentation](https://developers.google.com/books)
+
+### Backend API Endpoints
+
+Your app communicates with the local backend:
+
+- `GET /api/books/search?q=query` - Search books
+- `GET /api/books/isbn/:isbn` - Lookup by ISBN
+- `GET /api/books/:id` - Get book details
+
+See `server/README.md` for complete API documentation.
 
 ### Tesseract.js
 
@@ -202,7 +252,7 @@ Your site will be available at: `https://YOUR_USERNAME.github.io/book-scanner/`
 
 ## 🙏 Acknowledgments
 
-- [Open Library](https://openlibrary.org/) for providing free book data
+- [Google Books](https://books.google.com/) for providing comprehensive book data
 - [Tesseract.js](https://github.com/naptha/tesseract.js) for the amazing OCR library
 - [html5-qrcode](https://github.com/mebjas/html5-qrcode) for the barcode scanning library
 - [Lucide](https://lucide.dev/) for beautiful icons
@@ -211,7 +261,7 @@ Your site will be available at: `https://YOUR_USERNAME.github.io/book-scanner/`
 
 - OCR accuracy varies with image quality and lighting
 - Vertical text (book spines) may require manual rotation
-- Some older books may not have cover images in Open Library
+- Backend server required for book search functionality
 
 ## 📞 Support
 
@@ -219,4 +269,4 @@ If you encounter any issues or have questions, please [open an issue](https://gi
 
 ---
 
-Made with ❤️ using React and Open Library
+Made with ❤️ using React, Node.js, and Google Books API

@@ -1,0 +1,19 @@
+{
+  "name": "book-scanner-server",
+  "version": "1.0.0",
+  "description": "Backend server for Google Books API with caching",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node --watch index.js"
+  },
+  "keywords": ["books", "api", "cache", "google-books"],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "better-sqlite3": "^9.2.2"
+  }
+}

@@ -41,3 +41,8 @@ coverage
 
 # Misc
 .turbo
+
+# Database
+server/*.db
+server/*.db-shm
+server/*.db-wal

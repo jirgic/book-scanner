@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { getCoverUrl } from '../services/openLibrary';
+import { getCoverImageUrl } from '../services/googleBooks';
 import { useLibraryStore } from '../store';
 import {
   X,
@@ -17,8 +18,13 @@ import {
 
 export default function BookDetail({ book, onClose }) {
   const { addBook, removeBook, isInLibrary } = useLibraryStore();
-  const inLibrary = isInLibrary(book.key);
-  const coverUrl = getCoverUrl(book.coverId, 'L');
+  const bookKey = book.key || book.id; // Support both Open Library and Google Books
+  const inLibrary = isInLibrary(bookKey);
+
+  // Support both Open Library and Google Books cover images
+  const coverUrl = book.source === 'google-books'
+    ? getCoverImageUrl(book, 'large')
+    : getCoverUrl(book.coverId, 'L');
 
   // Prevent body scroll
   useEffect(() => {
@@ -39,9 +45,11 @@ export default function BookDetail({ book, onClose }) {
 
   const handleLibraryToggle = () => {
     if (inLibrary) {
-      removeBook(book.key);
+      removeBook(bookKey);
     } else {
-      addBook(book);
+      // Ensure the book has a key field for library storage
+      const bookToAdd = { ...book, key: bookKey };
+      addBook(bookToAdd);
     }
   };
 
@@ -209,16 +217,20 @@ export default function BookDetail({ book, onClose }) {
             </div>
           )}
 
-          {/* Open Library Link */}
-          <a
-            href={`https://openlibrary.org${book.key}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center justify-center gap-2 py-3 text-sm text-primary-400 hover:text-primary-300 transition-colors"
-          >
-            View on Open Library
-            <ExternalLink size={16} />
-          </a>
+          {/* External Link */}
+          {(book.infoLink || book.key) && (
+            <a
+              href={book.source === 'google-books' && book.infoLink
+                ? book.infoLink
+                : `https://openlibrary.org${book.key}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-center gap-2 py-3 text-sm text-primary-400 hover:text-primary-300 transition-colors"
+            >
+              {book.source === 'google-books' ? 'View on Google Books' : 'View on Open Library'}
+              <ExternalLink size={16} />
+            </a>
+          )}
         </div>
       </div>
     </div>
