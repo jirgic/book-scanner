@@ -3,6 +3,7 @@ import { useQuery, useMutation } from '@tanstack/react-query';
 import { useAppStore, useSettingsStore } from '../store';
 import * as openLibrary from '../services/openLibrary';
 import * as ocr from '../services/ocr';
+import * as barcode from '../services/barcode';
 
 /**
  * Hook for camera functionality
@@ -248,6 +249,114 @@ export function useOCR() {
 }
 
 /**
+ * Hook for barcode scanning functionality
+ */
+export function useBarcodeScanner() {
+  const { setSearchQuery, setMode } = useAppStore();
+  const [isScanning, setIsScanning] = useState(false);
+  const [scannedCode, setScannedCode] = useState(null);
+  const [error, setError] = useState(null);
+  const scannerIdRef = useRef('barcode-scanner');
+
+  // Initialize scanner
+  const initialize = useCallback(async () => {
+    try {
+      setError(null);
+      await barcode.initializeScanner(scannerIdRef.current);
+    } catch (err) {
+      setError(err.message);
+      throw err;
+    }
+  }, []);
+
+  // Start scanning
+  const startScanning = useCallback(
+    async (onSuccess, config = {}) => {
+      try {
+        setError(null);
+        setIsScanning(true);
+
+        await barcode.startScanning(
+          null, // Use default camera
+          (decodedText, decodedResult) => {
+            setScannedCode(decodedText);
+            if (onSuccess) {
+              onSuccess(decodedText, decodedResult);
+            }
+          },
+          (errorMessage) => {
+            // Scan errors are expected and can be ignored
+          },
+          config
+        );
+      } catch (err) {
+        setError(err.message);
+        setIsScanning(false);
+        throw err;
+      }
+    },
+    []
+  );
+
+  // Stop scanning
+  const stopScanning = useCallback(async () => {
+    try {
+      await barcode.stopScanning();
+      setIsScanning(false);
+    } catch (err) {
+      console.error('Failed to stop scanning:', err);
+      setIsScanning(false);
+    }
+  }, []);
+
+  // Scan image file
+  const scanFile = useCallback(async (file) => {
+    try {
+      setError(null);
+      const result = await barcode.scanImageFile(file);
+      setScannedCode(result);
+      return result;
+    } catch (err) {
+      setError(err.message);
+      throw err;
+    }
+  }, []);
+
+  // Cleanup
+  const cleanup = useCallback(async () => {
+    await barcode.clearScanner();
+    setIsScanning(false);
+    setScannedCode(null);
+    setError(null);
+  }, []);
+
+  // Get cameras
+  const getCameras = useCallback(async () => {
+    try {
+      return await barcode.getCameras();
+    } catch (err) {
+      console.error('Failed to get cameras:', err);
+      return [];
+    }
+  }, []);
+
+  return {
+    scannerId: scannerIdRef.current,
+    isScanning,
+    scannedCode,
+    error,
+    initialize,
+    startScanning,
+    stopScanning,
+    scanFile,
+    cleanup,
+    getCameras,
+    formatISBN: barcode.formatISBN,
+    isISBN: barcode.isISBN,
+  };
+}
+
+/**
  * Hook for book search
  */
 export function useBookSearch() {
@@ -469,6 +578,7 @@ export function useScanner() {
 export default {
   useCamera,
   useOCR,
+  useBarcodeScanner,
   useBookSearch,
   useBookDetails,
   useBookRatings,

@@ -11,10 +11,11 @@ A modern web application that uses your device's camera and OCR (Optical Charact
 ## ✨ Features
 
 - **📷 Camera Scanning** - Use your device camera to capture book covers or spines
+- **📊 Barcode Scanner** - Scan ISBN barcodes (EAN-13, UPC) for instant book lookup
 - **🔍 OCR Text Recognition** - Powered by Tesseract.js for accurate text extraction
 - **📖 Open Library Integration** - Search millions of books with ratings and metadata
 - **📚 Personal Library** - Save books to your personal collection (persisted locally)
-- **⚙️ Customizable Settings** - Multiple OCR languages, camera preferences, and more
+- **⚙️ Customizable Settings** - Multiple OCR languages, camera preferences, scan modes, and more
 - **📱 Mobile-First Design** - Responsive UI optimized for mobile devices
 - **🌙 Dark Theme** - Beautiful dark mode interface
 
@@ -96,6 +97,7 @@ book-scanner/
 - **Zustand** - Lightweight state management
 - **TanStack Query** - Data fetching and caching
 - **Tesseract.js** - OCR engine (WebAssembly)
+- **html5-qrcode** - Barcode and QR code scanner
 - **Lucide React** - Icon library
 
 ## 📡 APIs Used
@@ -116,6 +118,19 @@ Client-side OCR using WebAssembly. Supports 100+ languages.
 [Tesseract.js Documentation](https://github.com/naptha/tesseract.js)
 
 ## ⚙️ Configuration
+
+### Scan Mode
+
+Switch between two scanning methods in Settings:
+
+- **OCR Mode** (default) - Scan book covers and spines using text recognition
+- **Barcode Mode** - Scan ISBN barcodes for instant book lookup
+
+The barcode scanner supports:
+- ISBN-13 (EAN-13) - Standard book barcodes
+- ISBN-10
+- UPC codes
+- QR codes
 
 ### OCR Languages
 
@@ -189,6 +204,7 @@ Your site will be available at: `https://YOUR_USERNAME.github.io/book-scanner/`
 
 - [Open Library](https://openlibrary.org/) for providing free book data
 - [Tesseract.js](https://github.com/naptha/tesseract.js) for the amazing OCR library
+- [html5-qrcode](https://github.com/mebjas/html5-qrcode) for the barcode scanning library
 - [Lucide](https://lucide.dev/) for beautiful icons
 
 ## 🐛 Known Issues

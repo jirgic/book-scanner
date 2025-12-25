@@ -1,9 +1,10 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useAppStore, useLibraryStore, useSettingsStore } from './store';
-import { useScanner } from './hooks';
+import { useScanner, useBarcodeScanner } from './hooks';
 import {
   Header,
   CameraView,
+  BarcodeView,
   BookDetail,
   LibraryView,
   SettingsView,
@@ -33,19 +34,78 @@ export default function App() {
   } = useAppStore();
 
   const { books } = useLibraryStore();
-  const { showOcrText } = useSettingsStore();
+  const { showOcrText, scanMode } = useSettingsStore();
 
   const scanner = useScanner();
+  const barcodeScanner = useBarcodeScanner();
 
-  // Handle camera start
+  // Handle camera/barcode scanner start
   const handleStartCamera = useCallback(async () => {
     try {
-      await scanner.camera.start();
-      setMode('camera');
+      if (scanMode === 'barcode') {
+        // Initialize and start barcode scanner
+        await barcodeScanner.initialize();
+        setMode('camera');
+
+        // Start scanning after a short delay to allow UI to render
+        setTimeout(async () => {
+          try {
+            await barcodeScanner.startScanning(
+              async (decodedText, decodedResult) => {
+                console.log('Barcode detected:', decodedText);
+
+                // Check if it's an ISBN
+                if (barcodeScanner.isISBN(decodedText)) {
+                  const isbn = barcodeScanner.formatISBN(decodedText);
+
+                  // Stop scanning
+                  await barcodeScanner.stopScanning();
+
+                  // Search by ISBN
+                  setMode('processing');
+                  setSearchQuery(isbn);
+
+                  try {
+                    await scanner.search.searchByISBNAsync(isbn);
+                  } catch (error) {
+                    console.error('ISBN search failed:', error);
+                  }
+
+                  setMode('results');
+                } else {
+                  // Not an ISBN, but still search with the code
+                  console.log('Non-ISBN barcode, searching anyway:', decodedText);
+                  await barcodeScanner.stopScanning();
+                  setMode('processing');
+                  setSearchQuery(decodedText);
+
+                  try {
+                    await scanner.search.searchAsync(decodedText);
+                  } catch (error) {
+                    console.error('Search failed:', error);
+                  }
+
+                  setMode('results');
+                }
+              },
+              {
+                fps: 10,
+                qrbox: { width: 250, height: 100 },
+              }
+            );
+          } catch (err) {
+            console.error('Failed to start barcode scanning:', err);
+          }
+        }, 100);
+      } else {
+        // Start regular camera for OCR
+        await scanner.camera.start();
+        setMode('camera');
+      }
     } catch (err) {
       console.error('Failed to start camera:', err);
     }
-  }, [scanner.camera, setMode]);
+  }, [scanMode, scanner, barcodeScanner, setMode, setSearchQuery]);
 
   // Handle image capture
   const handleCapture = useCallback(async () => {
@@ -82,10 +142,13 @@ export default function App() {
   }, [setMode]);
 
   // Handle camera close
-  const handleCameraClose = useCallback(() => {
+  const handleCameraClose = useCallback(async () => {
     scanner.camera.stop();
+    if (scanMode === 'barcode') {
+      await barcodeScanner.cleanup();
+    }
     setMode('idle');
-  }, [scanner.camera, setMode]);
+  }, [scanner.camera, barcodeScanner, scanMode, setMode]);
 
   // Handle back/reset
   const handleBack = useCallback(() => {
@@ -135,8 +198,8 @@ export default function App() {
             />
           )}
 
-          {/* Camera View */}
-          {mode === 'camera' && (
+          {/* Camera View - OCR Mode */}
+          {mode === 'camera' && scanMode === 'ocr' && (
             <CameraView
               videoRef={scanner.camera.videoRef}
               canvasRef={scanner.camera.canvasRef}
@@ -144,6 +207,15 @@ export default function App() {
               onClose={handleCameraClose}
               onSwitchCamera={scanner.camera.switchCamera}
               isActive={scanner.camera.isActive}
+            />
+          )}
+
+          {/* Barcode Scanner View */}
+          {mode === 'camera' && scanMode === 'barcode' && (
+            <BarcodeView
+              scannerId={barcodeScanner.scannerId}
+              onClose={handleCameraClose}
+              isActive={barcodeScanner.isScanning}
             />
           )}
 

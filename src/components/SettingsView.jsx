@@ -84,6 +84,33 @@ export default function SettingsView({ onClose }) {
           </div>
         </section>
 
+        {/* Scan Mode Settings */}
+        <section>
+          <h3 className="text-sm font-medium text-dark-400 uppercase tracking-wider mb-3">
+            Scan Mode
+          </h3>
+          <div className="card">
+            <div>
+              <label className="block text-sm text-dark-300 mb-2">
+                Scanning Method
+              </label>
+              <select
+                value={settings.scanMode}
+                onChange={(e) => settings.setScanMode(e.target.value)}
+                className="input"
+              >
+                <option value="ocr">OCR (Text Recognition)</option>
+                <option value="barcode">Barcode Scanner (ISBN)</option>
+              </select>
+              <p className="text-xs text-dark-500 mt-2">
+                {settings.scanMode === 'ocr'
+                  ? 'Scan book covers and spines using text recognition'
+                  : 'Scan ISBN barcodes for quick book lookup'}
+              </p>
+            </div>
+          </div>
+        </section>
+
         {/* Camera Settings */}
         <section>
           <h3 className="text-sm font-medium text-dark-400 uppercase tracking-wider mb-3">
@@ -142,6 +169,7 @@ export default function SettingsView({ onClose }) {
                   if (confirm('Reset all settings to defaults?')) {
                     settings.setOcrLanguage('eng');
                     settings.setPreferredCamera('environment');
+                    settings.setScanMode('ocr');
                     settings.setShowOcrText(true);
                     settings.setAutoSearch(true);
                   }
