@@ -172,43 +172,52 @@ export function useOCR() {
           await initialize();
         }
 
-        // Preprocess if requested
-        let processedImage = imageSource;
-        if (options.preprocess) {
-          // Load image if it's a URL
-          if (typeof imageSource === 'string') {
-            const img = new Image();
-            img.crossOrigin = 'anonymous';
-            await new Promise((resolve, reject) => {
-              img.onload = resolve;
-              img.onerror = reject;
-              img.src = imageSource;
-            });
-            processedImage = ocr.preprocessImage(img);
-          } else {
-            processedImage = ocr.preprocessImage(imageSource);
+        const {
+          preprocess = true,
+          multiPass = true,
+          tryRotations = true,
+          tryPreprocessing = true,
+        } = options;
+
+        let result;
+
+        if (multiPass) {
+          // Use enhanced multi-pass OCR with different orientations and preprocessing
+          result = await ocr.recognizeTextMultiPass(imageSource, {
+            language: ocrLanguage,
+            onProgress: ({ status, progress }) => {
+              setOcrStatus(status || 'processing');
+              setOcrProgress(Math.round(progress * 100));
+            },
+            tryRotations,
+            tryPreprocessing,
+          });
+        } else {
+          // Use single-pass OCR with optional preprocessing
+          let processedImage = imageSource;
+          if (preprocess) {
+            // Load image if it's a URL
+            if (typeof imageSource === 'string') {
+              const img = new Image();
+              img.crossOrigin = 'anonymous';
+              await new Promise((resolve, reject) => {
+                img.onload = resolve;
+                img.onerror = reject;
+                img.src = imageSource;
+              });
+              processedImage = ocr.preprocessImage(img);
+            } else {
+              processedImage = ocr.preprocessImage(imageSource);
+            }
           }
-        }
 
-        // Recognize text
-        const result = await ocr.recognizeText(processedImage, {
-          language: ocrLanguage,
-          onProgress: ({ progress }) => {
-            setOcrProgress(Math.round(progress * 100));
-          },
-        });
-
-        // Check for vertical text (book spines)
-        if (result.confidence < 50 && ocr.detectVerticalText(result)) {
-          // Try rotated image
-          const rotated = ocr.rotateImage(processedImage, 90);
-          const rotatedResult = await ocr.recognizeText(rotated);
-
-          if (rotatedResult.confidence > result.confidence) {
-            setOcrText(rotatedResult.text);
-            setOcrStatus('complete');
-            return rotatedResult;
-          }
+          // Recognize text
+          result = await ocr.recognizeText(processedImage, {
+            language: ocrLanguage,
+            onProgress: ({ progress }) => {
+              setOcrProgress(Math.round(progress * 100));
+            },
+          });
         }
 
         setOcrText(result.text);
@@ -338,8 +347,12 @@ export function useScanner() {
       // Set mode to processing
       setMode('processing');
 
-      // Run OCR
-      const result = await ocrHook.processImage(imageData, { preprocess: true });
+      // Run OCR with multi-pass enabled for better accuracy
+      const result = await ocrHook.processImage(imageData, {
+        multiPass: true,
+        tryRotations: true,
+        tryPreprocessing: true,
+      });
 
       // Prepare search query
       const query = openLibrary.prepareSearchQuery(result.text);
@@ -384,8 +397,12 @@ export function useScanner() {
         setCapturedImage(imageData);
         setMode('processing');
 
-        // Run OCR
-        const result = await ocrHook.processImage(imageData, { preprocess: true });
+        // Run OCR with multi-pass enabled for better accuracy
+        const result = await ocrHook.processImage(imageData, {
+          multiPass: true,
+          tryRotations: true,
+          tryPreprocessing: true,
+        });
 
         // Prepare search query
         const query = openLibrary.prepareSearchQuery(result.text);
