@@ -57,7 +57,7 @@ export default function App() {
             await barcodeScanner.initialize();
             console.log('Barcode scanner initialized');
 
-            // Start scanning
+            // Start scanning with optimized config for ISBN barcodes
             await barcodeScanner.startScanning(
               async (decodedText, decodedResult) => {
                 console.log('Barcode detected:', decodedText);
@@ -97,8 +97,16 @@ export default function App() {
                 }
               },
               {
-                fps: 10,
-                qrbox: { width: 250, height: 100 },
+                fps: 5, // Lower FPS for better detection
+                qrbox: function(viewfinderWidth, viewfinderHeight) {
+                  // Make qrbox 70% of the width and 30% of height for horizontal barcodes
+                  const minEdgeSize = Math.min(viewfinderWidth, viewfinderHeight);
+                  const qrboxSize = {
+                    width: Math.floor(viewfinderWidth * 0.7),
+                    height: Math.floor(viewfinderHeight * 0.3)
+                  };
+                  return qrboxSize;
+                },
               }
             );
             console.log('Barcode scanner started successfully');
