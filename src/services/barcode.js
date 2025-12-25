@@ -55,20 +55,31 @@ export async function startScanning(
   }
 
   const scanConfig = {
-    fps: config.fps || 10,
-    qrbox: config.qrbox || { width: 250, height: 100 },
-    aspectRatio: config.aspectRatio || 1.777778,
-    disableFlip: config.disableFlip || false,
-    // Support multiple barcode formats
+    fps: config.fps || 5,
+    qrbox: config.qrbox || function(viewfinderWidth, viewfinderHeight) {
+      return {
+        width: Math.floor(viewfinderWidth * 0.7),
+        height: Math.floor(viewfinderHeight * 0.3)
+      };
+    },
+    aspectRatio: config.aspectRatio,
+    disableFlip: config.disableFlip !== undefined ? config.disableFlip : false,
+    // Support multiple barcode formats - prioritize ISBN formats
     formatsToSupport: config.formatsToSupport || [
-      Html5QrcodeSupportedFormats.QR_CODE,
-      Html5QrcodeSupportedFormats.EAN_13,      // Standard ISBN-13
-      Html5QrcodeSupportedFormats.EAN_8,
+      Html5QrcodeSupportedFormats.EAN_13,      // Standard ISBN-13 - MOST IMPORTANT
       Html5QrcodeSupportedFormats.UPC_A,
+      Html5QrcodeSupportedFormats.EAN_8,
       Html5QrcodeSupportedFormats.UPC_E,
       Html5QrcodeSupportedFormats.CODE_128,
       Html5QrcodeSupportedFormats.CODE_39,
+      Html5QrcodeSupportedFormats.QR_CODE,
     ],
+    // Additional settings for better barcode detection
+    videoConstraints: {
+      facingMode: 'environment',
+      focusMode: 'continuous',
+      advanced: [{ focusMode: 'continuous' }]
+    }
   };
 
   const cameraConfig = cameraId
@@ -79,17 +90,23 @@ export async function startScanning(
     console.log('Starting barcode scanner with config:', scanConfig);
     console.log('Camera config:', cameraConfig);
 
+    let scanAttempts = 0;
     await scanner.start(
       cameraConfig,
       scanConfig,
       (decodedText, decodedResult) => {
-        console.log('Scan success callback triggered:', decodedText);
+        console.log('✅ BARCODE DETECTED:', decodedText);
+        console.log('Decoded result:', decodedResult);
         if (onScanSuccess) {
           onScanSuccess(decodedText, decodedResult);
         }
       },
       (errorMessage) => {
-        // Scan errors are common and expected, only call callback if provided
+        // Scan errors are common and expected during continuous scanning
+        scanAttempts++;
+        if (scanAttempts % 50 === 0) {
+          console.log(`Scanning... ${scanAttempts} attempts, no barcode detected yet`);
+        }
         if (onScanError) {
           onScanError(errorMessage);
         }
@@ -97,9 +114,9 @@ export async function startScanning(
     );
 
     isScanning = true;
-    console.log('Barcode scanner started, isScanning:', isScanning);
+    console.log('✅ Barcode scanner started successfully, isScanning:', isScanning);
   } catch (error) {
-    console.error('Failed to start barcode scanning:', error);
+    console.error('❌ Failed to start barcode scanning:', error);
     isScanning = false;
     throw new Error(`Barcode scanning failed: ${error.message}`);
   }
