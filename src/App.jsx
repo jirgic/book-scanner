@@ -49,8 +49,13 @@ export default function App() {
         // Initialize and start barcode scanner after a delay to ensure DOM is ready
         setTimeout(async () => {
           try {
+            console.log('Initializing barcode scanner...');
+            const scannerElement = document.getElementById('barcode-scanner');
+            console.log('Scanner element exists:', !!scannerElement);
+
             // Initialize the scanner
             await barcodeScanner.initialize();
+            console.log('Barcode scanner initialized');
 
             // Start scanning
             await barcodeScanner.startScanning(
@@ -96,11 +101,13 @@ export default function App() {
                 qrbox: { width: 250, height: 100 },
               }
             );
+            console.log('Barcode scanner started successfully');
           } catch (err) {
             console.error('Failed to start barcode scanning:', err);
+            alert(`Barcode scanner error: ${err.message || err}`);
             setMode('idle');
           }
-        }, 300);
+        }, 500);
       } else {
         // Start regular camera for OCR
         await scanner.camera.start();
@@ -108,6 +115,7 @@ export default function App() {
       }
     } catch (err) {
       console.error('Failed to start camera:', err);
+      alert(`Camera error: ${err.message || err}`);
     }
   }, [scanMode, scanner, barcodeScanner, setMode, setSearchQuery]);
 

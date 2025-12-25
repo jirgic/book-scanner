@@ -3,7 +3,7 @@
  * Handles barcode scanning for ISBN and other codes
  */
 
-import { Html5Qrcode } from 'html5-qrcode';
+import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 
 let scanner = null;
 let isScanning = false;
@@ -16,11 +16,19 @@ let isScanning = false;
  */
 export async function initializeScanner(elementId, options = {}) {
   if (scanner) {
+    console.log('Scanner already initialized, reusing existing instance');
     return scanner;
   }
 
-  scanner = new Html5Qrcode(elementId);
-  return scanner;
+  console.log('Creating new Html5Qrcode scanner with element ID:', elementId);
+  try {
+    scanner = new Html5Qrcode(elementId);
+    console.log('Html5Qrcode scanner created successfully');
+    return scanner;
+  } catch (error) {
+    console.error('Failed to create Html5Qrcode scanner:', error);
+    throw error;
+  }
 }
 
 /**
@@ -53,14 +61,13 @@ export async function startScanning(
     disableFlip: config.disableFlip || false,
     // Support multiple barcode formats
     formatsToSupport: config.formatsToSupport || [
-      // Common book ISBN formats
-      13, // EAN_13 - Standard ISBN-13 barcode
-      2,  // EAN_8
-      // Other common formats
-      1,  // UPC_A
-      0,  // QR_CODE
-      128, // CODE_128
-      39, // CODE_39
+      Html5QrcodeSupportedFormats.QR_CODE,
+      Html5QrcodeSupportedFormats.EAN_13,      // Standard ISBN-13
+      Html5QrcodeSupportedFormats.EAN_8,
+      Html5QrcodeSupportedFormats.UPC_A,
+      Html5QrcodeSupportedFormats.UPC_E,
+      Html5QrcodeSupportedFormats.CODE_128,
+      Html5QrcodeSupportedFormats.CODE_39,
     ],
   };
 
@@ -69,10 +76,14 @@ export async function startScanning(
     : { facingMode: 'environment' };
 
   try {
+    console.log('Starting barcode scanner with config:', scanConfig);
+    console.log('Camera config:', cameraConfig);
+
     await scanner.start(
       cameraConfig,
       scanConfig,
       (decodedText, decodedResult) => {
+        console.log('Scan success callback triggered:', decodedText);
         if (onScanSuccess) {
           onScanSuccess(decodedText, decodedResult);
         }
@@ -86,8 +97,10 @@ export async function startScanning(
     );
 
     isScanning = true;
+    console.log('Barcode scanner started, isScanning:', isScanning);
   } catch (error) {
     console.error('Failed to start barcode scanning:', error);
+    isScanning = false;
     throw new Error(`Barcode scanning failed: ${error.message}`);
   }
 }
