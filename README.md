@@ -4,7 +4,7 @@ A modern web application that uses your device's camera and OCR (Optical Charact
 
 ## 🌐 Live Demo
 
-**[Try BookLens →](https://YOUR_USERNAME.github.io/book-scanner/)**
+**[Try BookLens →](https://jirgic.github.io/book-scanner/)**
 
 ![BookLens Screenshot](./docs/screenshot.png)
 
