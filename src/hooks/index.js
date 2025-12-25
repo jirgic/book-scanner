@@ -382,7 +382,29 @@ export function useBookSearch() {
   });
 
   const searchByISBNMutation = useMutation({
-    mutationFn: openLibrary.searchByISBN,
+    mutationFn: async (isbn) => {
+      const book = await openLibrary.searchByISBN(isbn);
+      return book;
+    },
+    onMutate: () => {
+      setIsSearching(true);
+      setSearchError(null);
+    },
+    onSuccess: (book) => {
+      // searchByISBN returns a single book or null, convert to array for consistency
+      if (book) {
+        setSearchResults([book]);
+      } else {
+        setSearchResults([]);
+        setSearchError('No book found with this ISBN');
+      }
+      setIsSearching(false);
+    },
+    onError: (error) => {
+      setSearchError(error.message);
+      setSearchResults([]);
+      setIsSearching(false);
+    },
   });
 
   return {
@@ -390,10 +412,11 @@ export function useBookSearch() {
     searchAsync: searchMutation.mutateAsync,
     searchByISBN: searchByISBNMutation.mutate,
     searchByISBNAsync: searchByISBNMutation.mutateAsync,
-    isSearching: searchMutation.isPending,
-    error: searchMutation.error,
+    isSearching: searchMutation.isPending || searchByISBNMutation.isPending,
+    error: searchMutation.error || searchByISBNMutation.error,
     reset: () => {
       searchMutation.reset();
+      searchByISBNMutation.reset();
       setSearchResults([]);
       setSearchError(null);
     },
