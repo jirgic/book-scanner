@@ -474,18 +474,26 @@ export async function recognizeTextMultiPass(image, options = {}) {
     currentPass++;
     const passProgress = (currentPass - 1) / totalPasses;
 
-    try {
-      const result = await worker.recognize(img, {
-        logger: (m) => {
-          if (onProgress && m.progress !== undefined) {
-            const overallProgress = passProgress + (m.progress / totalPasses);
-            onProgress({
-              status: `${label} (${currentPass}/${totalPasses})`,
-              progress: overallProgress,
-            });
-          }
-        },
+    // Report progress at the start of each pass
+    if (onProgress) {
+      onProgress({
+        status: `${label} (${currentPass}/${totalPasses})`,
+        progress: passProgress,
       });
+    }
+
+    try {
+      // Don't pass logger here - it causes DataCloneError due to closure variables
+      // The worker already has a logger set during initialization
+      const result = await worker.recognize(img);
+
+      // Report progress at the end of each pass
+      if (onProgress) {
+        onProgress({
+          status: `${label} (${currentPass}/${totalPasses})`,
+          progress: currentPass / totalPasses,
+        });
+      }
 
       return {
         text: result.data.text,
