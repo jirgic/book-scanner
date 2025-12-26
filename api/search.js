@@ -199,12 +199,24 @@ async function searchHardcover(query, limit = 20) {
       return [];
     }
 
-    // Parse the results - Hardcover returns a JSON string
+    // Parse the results - Hardcover returns a Typesense search response
     let results;
     try {
-      results = typeof data.data.search.results === 'string'
+      const searchResults = typeof data.data.search.results === 'string'
         ? JSON.parse(data.data.search.results)
         : data.data.search.results;
+
+      // Hardcover uses Typesense, results are in hits[].document
+      if (searchResults.hits && Array.isArray(searchResults.hits)) {
+        results = searchResults.hits.map(hit => hit.document);
+        console.log(`Extracted ${results.length} documents from ${searchResults.found} total results`);
+      } else if (Array.isArray(searchResults)) {
+        // Fallback: if it's already an array of books
+        results = searchResults;
+      } else {
+        console.error('Unexpected Hardcover results structure:', searchResults);
+        return [];
+      }
     } catch (parseError) {
       console.error('Failed to parse Hardcover results:', parseError);
       console.error('Raw results:', data.data.search.results);
