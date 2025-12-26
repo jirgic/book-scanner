@@ -107,9 +107,25 @@ export default function SettingsView({ onClose }) {
               <p className="text-xs text-dark-500 mt-2">
                 {settings.searchSource === 'combined' && 'Search all databases and combine results'}
                 {settings.searchSource === 'google' && 'Fast, comprehensive book data with ratings'}
-                {settings.searchSource === 'hardcover' && 'Community-driven database with social features'}
+                {settings.searchSource === 'hardcover' && 'Community-driven database with social features (requires API key)'}
                 {settings.searchSource === 'openlibrary' && 'Extensive catalog with multiple editions'}
               </p>
+              {(settings.searchSource === 'hardcover' || settings.searchSource === 'combined') && (
+                <div className="mt-3 p-3 bg-dark-800/50 border border-dark-700 rounded-lg">
+                  <p className="text-xs text-dark-400">
+                    <span className="text-yellow-400">⚠️ Note:</span> Hardcover requires an API key.{' '}
+                    <a
+                      href="https://hardcover.app"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-primary-400 hover:text-primary-300 underline"
+                    >
+                      Get your free API key
+                    </a>
+                    {' '}and add it to your environment variables.
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         </section>

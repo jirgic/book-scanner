@@ -119,9 +119,18 @@ book-scanner/
 - Community-driven book database with social features
 - High-quality cover images and metadata
 - User ratings and reading statistics
-- **Note**: API is public but authentication recommended for higher rate limits
+- **⚠️ Requires Authentication**: API key required for all requests
+- **Optional**: Set `HARDCOVER_API_KEY` environment variable to enable
 
 [Hardcover API Documentation](https://docs.hardcover.app/api/getting-started/)
+
+**To get an API key:**
+1. Create a free account at [hardcover.app](https://hardcover.app)
+2. Go to Settings → API
+3. Generate your API key
+4. Add to Vercel: Environment Variables → `HARDCOVER_API_KEY`
+
+**Note**: Without an API key, Hardcover searches will be skipped and only Google Books and Open Library will be used.
 
 ### Open Library API
 
@@ -141,6 +150,26 @@ Client-side OCR using WebAssembly. Supports 100+ languages.
 [Tesseract.js Documentation](https://github.com/naptha/tesseract.js)
 
 ## ⚙️ Configuration
+
+### Environment Variables (Optional)
+
+You can configure the following environment variables:
+
+- `HARDCOVER_API_KEY` - Your Hardcover API key (optional)
+  - Get your key from [hardcover.app/settings/api](https://hardcover.app)
+  - If not set, Hardcover searches will be skipped
+
+**Setting in Vercel:**
+1. Go to your project dashboard
+2. Settings → Environment Variables
+3. Add `HARDCOVER_API_KEY` with your key value
+4. Redeploy for changes to take effect
+
+**Setting locally:**
+Create a `.env` file in the root:
+```env
+HARDCOVER_API_KEY=your_api_key_here
+```
 
 ### OCR Languages
 
