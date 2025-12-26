@@ -1,9 +1,8 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useAppStore, useSettingsStore } from '../store';
-import * as openLibrary from '../services/openLibrary';
+import * as bookApi from '../services/bookApi';
 import * as ocr from '../services/ocr';
-import * as barcode from '../services/barcode';
 
 /**
  * Hook for camera functionality
@@ -173,52 +172,43 @@ export function useOCR() {
           await initialize();
         }
 
-        const {
-          preprocess = true,
-          multiPass = true,
-          tryRotations = true,
-          tryPreprocessing = true,
-        } = options;
-
-        let result;
-
-        if (multiPass) {
-          // Use enhanced multi-pass OCR with different orientations and preprocessing
-          result = await ocr.recognizeTextMultiPass(imageSource, {
-            language: ocrLanguage,
-            onProgress: ({ status, progress }) => {
-              setOcrStatus(status || 'processing');
-              setOcrProgress(Math.round(progress * 100));
-            },
-            tryRotations,
-            tryPreprocessing,
-          });
-        } else {
-          // Use single-pass OCR with optional preprocessing
-          let processedImage = imageSource;
-          if (preprocess) {
-            // Load image if it's a URL
-            if (typeof imageSource === 'string') {
-              const img = new Image();
-              img.crossOrigin = 'anonymous';
-              await new Promise((resolve, reject) => {
-                img.onload = resolve;
-                img.onerror = reject;
-                img.src = imageSource;
-              });
-              processedImage = ocr.preprocessImage(img);
-            } else {
-              processedImage = ocr.preprocessImage(imageSource);
-            }
+        // Preprocess if requested
+        let processedImage = imageSource;
+        if (options.preprocess) {
+          // Load image if it's a URL
+          if (typeof imageSource === 'string') {
+            const img = new Image();
+            img.crossOrigin = 'anonymous';
+            await new Promise((resolve, reject) => {
+              img.onload = resolve;
+              img.onerror = reject;
+              img.src = imageSource;
+            });
+            processedImage = ocr.preprocessImage(img);
+          } else {
+            processedImage = ocr.preprocessImage(imageSource);
           }
+        }
 
-          // Recognize text
-          result = await ocr.recognizeText(processedImage, {
-            language: ocrLanguage,
-            onProgress: ({ progress }) => {
-              setOcrProgress(Math.round(progress * 100));
-            },
-          });
+        // Recognize text
+        const result = await ocr.recognizeText(processedImage, {
+          language: ocrLanguage,
+          onProgress: ({ progress }) => {
+            setOcrProgress(Math.round(progress * 100));
+          },
+        });
+
+        // Check for vertical text (book spines)
+        if (result.confidence < 50 && ocr.detectVerticalText(result)) {
+          // Try rotated image
+          const rotated = ocr.rotateImage(processedImage, 90);
+          const rotatedResult = await ocr.recognizeText(rotated);
+
+          if (rotatedResult.confidence > result.confidence) {
+            setOcrText(rotatedResult.text);
+            setOcrStatus('complete');
+            return rotatedResult;
+          }
         }
 
         setOcrText(result.text);
@@ -249,114 +239,6 @@ export function useOCR() {
 }
 
 /**
- * Hook for barcode scanning functionality
- */
-export function useBarcodeScanner() {
-  const { setSearchQuery, setMode } = useAppStore();
-  const [isScanning, setIsScanning] = useState(false);
-  const [scannedCode, setScannedCode] = useState(null);
-  const [error, setError] = useState(null);
-  const scannerIdRef = useRef('barcode-scanner');
-
-  // Initialize scanner
-  const initialize = useCallback(async () => {
-    try {
-      setError(null);
-      await barcode.initializeScanner(scannerIdRef.current);
-    } catch (err) {
-      setError(err.message);
-      throw err;
-    }
-  }, []);
-
-  // Start scanning
-  const startScanning = useCallback(
-    async (onSuccess, config = {}) => {
-      try {
-        setError(null);
-        setIsScanning(true);
-
-        await barcode.startScanning(
-          null, // Use default camera
-          (decodedText, decodedResult) => {
-            setScannedCode(decodedText);
-            if (onSuccess) {
-              onSuccess(decodedText, decodedResult);
-            }
-          },
-          (errorMessage) => {
-            // Scan errors are expected and can be ignored
-          },
-          config
-        );
-      } catch (err) {
-        setError(err.message);
-        setIsScanning(false);
-        throw err;
-      }
-    },
-    []
-  );
-
-  // Stop scanning
-  const stopScanning = useCallback(async () => {
-    try {
-      await barcode.stopScanning();
-      setIsScanning(false);
-    } catch (err) {
-      console.error('Failed to stop scanning:', err);
-      setIsScanning(false);
-    }
-  }, []);
-
-  // Scan image file
-  const scanFile = useCallback(async (file) => {
-    try {
-      setError(null);
-      const result = await barcode.scanImageFile(file);
-      setScannedCode(result);
-      return result;
-    } catch (err) {
-      setError(err.message);
-      throw err;
-    }
-  }, []);
-
-  // Cleanup
-  const cleanup = useCallback(async () => {
-    await barcode.clearScanner();
-    setIsScanning(false);
-    setScannedCode(null);
-    setError(null);
-  }, []);
-
-  // Get cameras
-  const getCameras = useCallback(async () => {
-    try {
-      return await barcode.getCameras();
-    } catch (err) {
-      console.error('Failed to get cameras:', err);
-      return [];
-    }
-  }, []);
-
-  return {
-    scannerId: scannerIdRef.current,
-    isScanning,
-    scannedCode,
-    error,
-    initialize,
-    startScanning,
-    stopScanning,
-    scanFile,
-    cleanup,
-    getCameras,
-    formatISBN: barcode.formatISBN,
-    isISBN: barcode.isISBN,
-  };
-}
-
-/**
  * Hook for book search
  */
 export function useBookSearch() {
@@ -364,7 +246,7 @@ export function useBookSearch() {
 
   const searchMutation = useMutation({
     mutationFn: async (query) => {
-      const result = await openLibrary.searchBooks(query, { limit: 20 });
+      const result = await bookApi.searchBooks(query, { limit: 20, source: 'all' });
       return result.books;
     },
     onMutate: () => {
@@ -382,29 +264,7 @@ export function useBookSearch() {
   });
 
   const searchByISBNMutation = useMutation({
-    mutationFn: async (isbn) => {
-      const book = await openLibrary.searchByISBN(isbn);
-      return book;
-    },
-    onMutate: () => {
-      setIsSearching(true);
-      setSearchError(null);
-    },
-    onSuccess: (book) => {
-      // searchByISBN returns a single book or null, convert to array for consistency
-      if (book) {
-        setSearchResults([book]);
-      } else {
-        setSearchResults([]);
-        setSearchError('No book found with this ISBN');
-      }
-      setIsSearching(false);
-    },
-    onError: (error) => {
-      setSearchError(error.message);
-      setSearchResults([]);
-      setIsSearching(false);
-    },
+    mutationFn: bookApi.lookupISBN,
   });
 
   return {
@@ -412,11 +272,10 @@ export function useBookSearch() {
     searchAsync: searchMutation.mutateAsync,
     searchByISBN: searchByISBNMutation.mutate,
     searchByISBNAsync: searchByISBNMutation.mutateAsync,
-    isSearching: searchMutation.isPending || searchByISBNMutation.isPending,
-    error: searchMutation.error || searchByISBNMutation.error,
+    isSearching: searchMutation.isPending,
+    error: searchMutation.error,
     reset: () => {
       searchMutation.reset();
-      searchByISBNMutation.reset();
       setSearchResults([]);
       setSearchError(null);
     },
@@ -429,21 +288,9 @@ export function useBookSearch() {
 export function useBookDetails(bookKey) {
   return useQuery({
     queryKey: ['book', bookKey],
-    queryFn: () => openLibrary.getBookDetails(bookKey),
+    queryFn: () => bookApi.getBookDetails(bookKey),
     enabled: !!bookKey,
     staleTime: 1000 * 60 * 30, // 30 minutes
-  });
-}
-
-/**
- * Hook for book ratings
- */
-export function useBookRatings(bookKey) {
-  return useQuery({
-    queryKey: ['ratings', bookKey],
-    queryFn: () => openLibrary.getBookRatings(bookKey),
-    enabled: !!bookKey,
-    staleTime: 1000 * 60 * 60, // 1 hour
   });
 }
 
@@ -479,15 +326,11 @@ export function useScanner() {
       // Set mode to processing
       setMode('processing');
 
-      // Run OCR with multi-pass enabled for better accuracy
-      const result = await ocrHook.processImage(imageData, {
-        multiPass: true,
-        tryRotations: true,
-        tryPreprocessing: true,
-      });
+      // Run OCR
+      const result = await ocrHook.processImage(imageData, { preprocess: true });
 
       // Prepare search query
-      const query = openLibrary.prepareSearchQuery(result.text);
+      const query = bookApi.prepareSearchQuery(result.text);
       setSearchQuery(query);
 
       // Auto search if enabled and we have text
@@ -529,15 +372,11 @@ export function useScanner() {
         setCapturedImage(imageData);
         setMode('processing');
 
-        // Run OCR with multi-pass enabled for better accuracy
-        const result = await ocrHook.processImage(imageData, {
-          multiPass: true,
-          tryRotations: true,
-          tryPreprocessing: true,
-        });
+        // Run OCR
+        const result = await ocrHook.processImage(imageData, { preprocess: true });
 
         // Prepare search query
-        const query = openLibrary.prepareSearchQuery(result.text);
+        const query = bookApi.prepareSearchQuery(result.text);
         setSearchQuery(query);
 
         // Auto search if enabled
@@ -601,9 +440,7 @@ export function useScanner() {
 export default {
   useCamera,
   useOCR,
-  useBarcodeScanner,
   useBookSearch,
   useBookDetails,
-  useBookRatings,
   useScanner,
 };
