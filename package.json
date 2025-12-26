@@ -4,6 +4,9 @@
   "description": "Scan book covers and spines with OCR to find book information from Open Library",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": "18.x"
+  },
   "homepage": "https://YOUR_USERNAME.github.io/book-scanner/",
   "scripts": {
     "dev": "vite",
