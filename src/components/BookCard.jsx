@@ -1,8 +1,8 @@
-import { getCoverUrl } from '../services/openLibrary';
+import { getCoverUrl } from '../services/bookApi';
 import { StarRating, BookOpen } from './Icons';
 
 export default function BookCard({ book, onClick, className = '' }) {
-  const coverUrl = getCoverUrl(book.coverId, 'M');
+  const coverUrl = book.coverUrl;
 
   return (
     <button

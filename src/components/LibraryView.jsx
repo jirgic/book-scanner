@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useLibraryStore } from '../store';
-import { getCoverUrl } from '../services/openLibrary';
+import { getCoverUrl } from '../services/bookApi';
 import { X, Trash2, BookOpen, StarRating, Library, ArrowLeft } from './Icons';
 
 export default function LibraryView({ onClose, onBookClick }) {
@@ -90,7 +90,7 @@ export default function LibraryView({ onClose, onBookClick }) {
 }
 
 function LibraryBookItem({ book, onRemove, onClick }) {
-  const coverUrl = getCoverUrl(book.coverId, 'S');
+  const coverUrl = book.coverUrl;
 
   return (
     <div className="flex items-start gap-4 p-4 bg-dark-800/30 border border-dark-700/50 rounded-xl">
