@@ -28,7 +28,9 @@ export default async function handler(req, res) {
   }
 
   try {
-    let results;
+    let results = [];
+
+    console.log(`Search request - query: "${q}", source: "${source}", limit: ${limit}`);
 
     switch (source) {
       case 'google':
@@ -38,13 +40,23 @@ export default async function handler(req, res) {
         results = await searchOpenLibrary(q, limit);
         break;
       case 'hardcover':
+        console.log('Calling searchHardcover...');
         results = await searchHardcover(q, limit);
+        console.log('searchHardcover returned:', results?.length, 'results');
         break;
       case 'combined':
       default:
         results = await searchCombined(q, limit);
         break;
     }
+
+    // Ensure results is an array
+    if (!Array.isArray(results)) {
+      console.error('Results is not an array:', typeof results, results);
+      results = [];
+    }
+
+    console.log(`Returning ${results.length} results for source: ${source}`);
 
     return res.status(200).json({
       success: true,
@@ -55,6 +67,7 @@ export default async function handler(req, res) {
     });
   } catch (error) {
     console.error('Search error:', error);
+    console.error('Error stack:', error.stack);
     return res.status(500).json({
       success: false,
       error: 'Search failed',
@@ -113,67 +126,85 @@ async function searchOpenLibrary(query, limit = 20) {
  * Search Hardcover API
  */
 async function searchHardcover(query, limit = 20) {
-  const graphqlQuery = `
-    query SearchBooks($query: String!, $perPage: Int!, $page: Int!) {
-      search(
-        query: $query
-        query_type: "books"
-        per_page: $perPage
-        page: $page
-      ) {
-        results
+  try {
+    const graphqlQuery = `
+      query SearchBooks($query: String!, $perPage: Int!, $page: Int!) {
+        search(
+          query: $query
+          query_type: "books"
+          per_page: $perPage
+          page: $page
+        ) {
+          results
+        }
       }
-    }
-  `;
+    `;
 
-  const response = await fetch(HARDCOVER_API_URL, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
+    const requestBody = {
       query: graphqlQuery,
       variables: {
         query,
         perPage: limit,
         page: 1,
       },
-    }),
-  });
+    };
 
-  if (!response.ok) {
-    throw new Error(`Hardcover API error: ${response.status}`);
-  }
+    console.log('Hardcover request:', JSON.stringify(requestBody, null, 2));
 
-  const data = await response.json();
+    const response = await fetch(HARDCOVER_API_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(requestBody),
+    });
 
-  if (data.errors) {
-    throw new Error(`GraphQL error: ${data.errors[0].message}`);
-  }
+    console.log('Hardcover response status:', response.status);
 
-  // Check if we have search results
-  if (!data.data?.search?.results) {
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Hardcover API error response:', errorText);
+      return [];
+    }
+
+    const data = await response.json();
+    console.log('Hardcover response data:', JSON.stringify(data, null, 2));
+
+    if (data.errors) {
+      console.error('GraphQL errors:', data.errors);
+      return [];
+    }
+
+    // Check if we have search results
+    if (!data.data?.search?.results) {
+      console.log('No search results in response');
+      return [];
+    }
+
+    // Parse the results - Hardcover returns a JSON string
+    let results;
+    try {
+      results = typeof data.data.search.results === 'string'
+        ? JSON.parse(data.data.search.results)
+        : data.data.search.results;
+    } catch (parseError) {
+      console.error('Failed to parse Hardcover results:', parseError);
+      console.error('Raw results:', data.data.search.results);
+      return [];
+    }
+
+    // Ensure results is an array
+    if (!Array.isArray(results)) {
+      console.error('Hardcover results is not an array:', results);
+      return [];
+    }
+
+    console.log(`Found ${results.length} results from Hardcover`);
+    return results.map((book) => normalizeHardcoverBook(book));
+  } catch (error) {
+    console.error('Hardcover search error:', error);
     return [];
   }
-
-  // Parse the results - Hardcover returns a JSON string
-  let results;
-  try {
-    results = typeof data.data.search.results === 'string'
-      ? JSON.parse(data.data.search.results)
-      : data.data.search.results;
-  } catch (parseError) {
-    console.error('Failed to parse Hardcover results:', parseError);
-    return [];
-  }
-
-  // Ensure results is an array
-  if (!Array.isArray(results)) {
-    console.error('Hardcover results is not an array:', results);
-    return [];
-  }
-
-  return results.map((book) => normalizeHardcoverBook(book));
 }
 
 /**
