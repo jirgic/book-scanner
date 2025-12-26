@@ -151,11 +151,22 @@ async function searchHardcover(query, limit = 20) {
 
     console.log('Hardcover request:', JSON.stringify(requestBody, null, 2));
 
+    // Check for optional API key
+    const apiKey = process.env.HARDCOVER_API_KEY;
+    const headers = {
+      'Content-Type': 'application/json',
+    };
+
+    if (apiKey) {
+      headers['Authorization'] = `Bearer ${apiKey}`;
+      console.log('Using Hardcover API key');
+    } else {
+      console.log('No Hardcover API key found - attempting unauthenticated request');
+    }
+
     const response = await fetch(HARDCOVER_API_URL, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers,
       body: JSON.stringify(requestBody),
     });
 
@@ -164,6 +175,13 @@ async function searchHardcover(query, limit = 20) {
     if (!response.ok) {
       const errorText = await response.text();
       console.error('Hardcover API error response:', errorText);
+
+      // Handle 401 - API key required
+      if (response.status === 401) {
+        console.log('Hardcover API requires authentication. Skipping Hardcover search.');
+        console.log('To enable Hardcover: Set HARDCOVER_API_KEY environment variable');
+      }
+
       return [];
     }
 

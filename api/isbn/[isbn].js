@@ -237,11 +237,19 @@ async function lookupHardcover(isbn) {
     }
   `;
 
+  // Check for optional API key
+  const apiKey = process.env.HARDCOVER_API_KEY;
+  const headers = {
+    'Content-Type': 'application/json',
+  };
+
+  if (apiKey) {
+    headers['Authorization'] = `Bearer ${apiKey}`;
+  }
+
   const response = await fetch(HARDCOVER_API_URL, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers,
     body: JSON.stringify({
       query: graphqlQuery,
       variables: {
@@ -251,6 +259,11 @@ async function lookupHardcover(isbn) {
   });
 
   if (!response.ok) {
+    // Return null for 401 (authentication required)
+    if (response.status === 401) {
+      console.log('Hardcover API requires authentication. Set HARDCOVER_API_KEY to enable.');
+      return null;
+    }
     throw new Error(`Hardcover API error: ${response.status}`);
   }
 
