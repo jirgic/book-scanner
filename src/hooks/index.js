@@ -3,6 +3,7 @@ import { useQuery, useMutation } from '@tanstack/react-query';
 import { useAppStore, useSettingsStore } from '../store';
 import * as bookApi from '../services/bookApi';
 import * as ocr from '../services/ocr';
+import * as barcodeScanner from '../services/barcode';
 
 /**
  * Hook for camera functionality
@@ -296,6 +297,79 @@ export function useBookDetails(bookKey) {
 }
 
 /**
+ * Hook for barcode scanning
+ */
+export function useBarcode() {
+  const [isActive, setIsActive] = useState(false);
+  const [error, setError] = useState(null);
+  const scannerId = 'barcode-scanner';
+
+  // Initialize scanner
+  const initialize = useCallback(async () => {
+    try {
+      setError(null);
+      await barcodeScanner.initializeScanner(scannerId);
+      return true;
+    } catch (err) {
+      console.error('Failed to initialize barcode scanner:', err);
+      setError(err.message);
+      return false;
+    }
+  }, []);
+
+  // Start scanning
+  const start = useCallback(async (onScanSuccess) => {
+    try {
+      setError(null);
+      await barcodeScanner.startScanning(
+        null, // use default camera
+        (decodedText) => {
+          console.log('Barcode scanned:', decodedText);
+          if (onScanSuccess) {
+            onScanSuccess(decodedText);
+          }
+        }
+      );
+      setIsActive(true);
+    } catch (err) {
+      console.error('Failed to start barcode scanning:', err);
+      setError(err.message);
+      setIsActive(false);
+    }
+  }, []);
+
+  // Stop scanning
+  const stop = useCallback(async () => {
+    try {
+      await barcodeScanner.stopScanning();
+      setIsActive(false);
+    } catch (err) {
+      console.error('Failed to stop barcode scanning:', err);
+    }
+  }, []);
+
+  // Cleanup scanner
+  const cleanup = useCallback(async () => {
+    try {
+      await barcodeScanner.clearScanner();
+      setIsActive(false);
+    } catch (err) {
+      console.error('Failed to cleanup barcode scanner:', err);
+    }
+  }, []);
+
+  return {
+    scannerId,
+    isActive,
+    error,
+    initialize,
+    start,
+    stop,
+    cleanup,
+  };
+}
+
+/**
  * Combined hook for scanning workflow
  */
 export function useScanner() {
@@ -443,5 +517,6 @@ export default {
   useOCR,
   useBookSearch,
   useBookDetails,
+  useBarcode,
   useScanner,
 };

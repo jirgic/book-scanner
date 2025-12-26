@@ -1,9 +1,10 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useAppStore, useLibraryStore, useSettingsStore } from './store';
-import { useScanner } from './hooks';
+import { useScanner, useBarcode, useBookSearch } from './hooks';
 import {
   Header,
   CameraView,
+  BarcodeView,
   BookDetail,
   LibraryView,
   SettingsView,
@@ -11,6 +12,7 @@ import {
   ProcessingScreen,
   ResultsScreen,
 } from './components';
+import { formatISBN, isISBN } from './services/barcode';
 
 export default function App() {
   const [showLibrary, setShowLibrary] = useState(false);
@@ -36,6 +38,67 @@ export default function App() {
   const { showOcrText } = useSettingsStore();
 
   const scanner = useScanner();
+  const barcode = useBarcode();
+  const bookSearch = useBookSearch();
+
+  // Handle barcode scan start
+  const handleStartBarcode = useCallback(async () => {
+    try {
+      await barcode.initialize();
+      setMode('barcode');
+      // Wait a bit for the scanner element to render
+      setTimeout(async () => {
+        await barcode.start(handleBarcodeScan);
+      }, 100);
+    } catch (err) {
+      console.error('Failed to start barcode scanner:', err);
+    }
+  }, [barcode, setMode]);
+
+  // Handle barcode scan success
+  const handleBarcodeScan = useCallback(async (decodedText) => {
+    try {
+      console.log('Barcode scanned:', decodedText);
+
+      // Check if it's an ISBN
+      const isbn = formatISBN(decodedText);
+      if (!isbn || !isISBN(decodedText)) {
+        console.warn('Scanned barcode is not an ISBN:', decodedText);
+        return;
+      }
+
+      // Stop barcode scanner
+      await barcode.stop();
+      await barcode.cleanup();
+
+      // Set mode to processing
+      setMode('processing');
+
+      // Lookup ISBN
+      const book = await bookSearch.searchByISBNAsync(isbn);
+
+      if (book) {
+        // Show book details
+        setSelectedBook(book);
+      } else {
+        // Show error or no results
+        setMode('results');
+      }
+
+      // Reset to idle
+      setMode('idle');
+    } catch (err) {
+      console.error('Barcode scan processing failed:', err);
+      setMode('idle');
+    }
+  }, [barcode, bookSearch, setMode, setSelectedBook]);
+
+  // Handle barcode close
+  const handleBarcodeClose = useCallback(async () => {
+    await barcode.stop();
+    await barcode.cleanup();
+    setMode('idle');
+  }, [barcode, setMode]);
 
   // Handle camera start
   const handleStartCamera = useCallback(async () => {
@@ -101,10 +164,11 @@ export default function App() {
     [setSelectedBook]
   );
 
-  // Cleanup OCR worker on unmount
+  // Cleanup OCR worker and barcode scanner on unmount
   useEffect(() => {
     return () => {
       scanner.ocr.cleanup();
+      barcode.cleanup();
     };
   }, []);
 
@@ -115,8 +179,8 @@ export default function App() {
 
       {/* Main content */}
       <div className="relative z-10 min-h-screen flex flex-col">
-        {/* Header - hidden during camera mode */}
-        {mode !== 'camera' && (
+        {/* Header - hidden during camera and barcode modes */}
+        {mode !== 'camera' && mode !== 'barcode' && (
           <Header
             onLibraryClick={() => setShowLibrary(true)}
             onSettingsClick={() => setShowSettings(true)}
@@ -130,6 +194,7 @@ export default function App() {
           {mode === 'idle' && (
             <HomeScreen
               onStartCamera={handleStartCamera}
+              onStartBarcode={handleStartBarcode}
               onUpload={handleUpload}
               onSkipToSearch={handleSkipToSearch}
             />
@@ -144,6 +209,16 @@ export default function App() {
               onClose={handleCameraClose}
               onSwitchCamera={scanner.camera.switchCamera}
               isActive={scanner.camera.isActive}
+            />
+          )}
+
+          {/* Barcode Scanner View */}
+          {mode === 'barcode' && (
+            <BarcodeView
+              scannerId={barcode.scannerId}
+              onScanSuccess={handleBarcodeScan}
+              onClose={handleBarcodeClose}
+              isActive={barcode.isActive}
             />
           )}
 
@@ -175,7 +250,7 @@ export default function App() {
         </main>
 
         {/* Footer */}
-        {mode !== 'camera' && (
+        {mode !== 'camera' && mode !== 'barcode' && (
           <footer className="text-center py-4 text-xs text-dark-600">
             Powered by Open Library & Tesseract.js
           </footer>

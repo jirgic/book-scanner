@@ -4,7 +4,7 @@ import BookCard, { BookCardSkeleton } from './BookCard';
 import SearchBar, { QuickSearch } from './SearchBar';
 
 // Home Screen (Idle state)
-export function HomeScreen({ onStartCamera, onUpload, onSkipToSearch }) {
+export function HomeScreen({ onStartCamera, onStartBarcode, onUpload, onSkipToSearch }) {
   const fileInputRef = useRef(null);
 
   const handleFileChange = (e) => {
@@ -23,15 +23,20 @@ export function HomeScreen({ onStartCamera, onUpload, onSkipToSearch }) {
           Scan a Book
         </h2>
         <p className="text-dark-400 max-w-xs mx-auto">
-          Point your camera at a book cover or spine, and we'll find it for you.
+          Scan a barcode, take a photo, or search manually
         </p>
       </div>
 
       {/* Actions */}
       <div className="w-full max-w-xs space-y-3">
-        <button onClick={onStartCamera} className="btn-primary w-full py-3">
+        <button onClick={onStartBarcode} className="btn-primary w-full py-3">
+          <Scan size={20} className="inline mr-2" />
+          Scan Barcode
+        </button>
+
+        <button onClick={onStartCamera} className="btn-secondary w-full py-3">
           <Camera size={20} className="inline mr-2" />
-          Open Camera
+          Scan Cover/Spine
         </button>
 
         <button
