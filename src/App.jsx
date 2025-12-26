@@ -44,16 +44,11 @@ export default function App() {
   // Handle barcode scan start
   const handleStartBarcode = useCallback(async () => {
     try {
-      await barcode.initialize();
       setMode('barcode');
-      // Wait a bit for the scanner element to render
-      setTimeout(async () => {
-        await barcode.start(handleBarcodeScan);
-      }, 100);
     } catch (err) {
       console.error('Failed to start barcode scanner:', err);
     }
-  }, [barcode, setMode]);
+  }, [setMode]);
 
   // Handle barcode scan success
   const handleBarcodeScan = useCallback(async (decodedText) => {
@@ -163,6 +158,25 @@ export default function App() {
     },
     [setSelectedBook]
   );
+
+  // Initialize and start barcode scanner when entering barcode mode
+  useEffect(() => {
+    if (mode === 'barcode') {
+      const startBarcodeScanner = async () => {
+        try {
+          console.log('Initializing barcode scanner...');
+          await barcode.initialize();
+          console.log('Starting barcode scanner...');
+          await barcode.start(handleBarcodeScan);
+          console.log('Barcode scanner started successfully');
+        } catch (err) {
+          console.error('Failed to start barcode scanner:', err);
+          setMode('idle');
+        }
+      };
+      startBarcodeScanner();
+    }
+  }, [mode, barcode, handleBarcodeScan, setMode]);
 
   // Cleanup OCR worker and barcode scanner on unmount
   useEffect(() => {
