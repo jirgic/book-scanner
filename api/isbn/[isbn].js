@@ -5,6 +5,7 @@
 
 const GOOGLE_BOOKS_API = 'https://www.googleapis.com/books/v1/volumes';
 const OPEN_LIBRARY_ISBN_API = 'https://openlibrary.org/isbn';
+const HARDCOVER_API_URL = 'https://api.hardcover.app/v1/graphql';
 
 export default async function handler(req, res) {
   // CORS headers
@@ -36,18 +37,22 @@ export default async function handler(req, res) {
 
   try {
     // Try multiple sources in parallel
-    const [googleResult, openLibraryResult] = await Promise.allSettled([
+    const [googleResult, hardcoverResult, openLibraryResult] = await Promise.allSettled([
       lookupGoogleBooks(cleanISBN),
+      lookupHardcover(cleanISBN),
       lookupOpenLibrary(cleanISBN),
     ]);
 
-    // Prefer Google Books result, fall back to Open Library
+    // Prefer results in order: Google Books, Hardcover, Open Library
     let book = null;
     let source = null;
 
     if (googleResult.status === 'fulfilled' && googleResult.value) {
       book = googleResult.value;
       source = 'google';
+    } else if (hardcoverResult.status === 'fulfilled' && hardcoverResult.value) {
+      book = hardcoverResult.value;
+      source = 'hardcover';
     } else if (openLibraryResult.status === 'fulfilled' && openLibraryResult.value) {
       book = openLibraryResult.value;
       source = 'openlibrary';
@@ -183,5 +188,121 @@ async function lookupOpenLibrary(isbn) {
     ratingsCount: null,
     previewLink: `https://openlibrary.org${data.key}`,
     infoLink: `https://openlibrary.org${data.key}`,
+  };
+}
+
+/**
+ * Lookup book by ISBN in Hardcover
+ */
+async function lookupHardcover(isbn) {
+  const graphqlQuery = `
+    query BookByISBN($isbn: String!) {
+      books(
+        where: {
+          _or: [
+            { editions: { isbn_10: { _eq: $isbn } } }
+            { editions: { isbn_13: { _eq: $isbn } } }
+          ]
+        }
+        limit: 1
+      ) {
+        id
+        slug
+        title
+        subtitle
+        description
+        pages
+        release_date
+        rating
+        ratings_count
+        users_read_count
+        users_count
+        cached_image {
+          url
+        }
+        contributions {
+          author {
+            id
+            name
+            slug
+          }
+        }
+        editions {
+          isbn_10
+          isbn_13
+          publisher_name
+        }
+        cached_tags
+      }
+    }
+  `;
+
+  const response = await fetch(HARDCOVER_API_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      query: graphqlQuery,
+      variables: {
+        isbn,
+      },
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Hardcover API error: ${response.status}`);
+  }
+
+  const data = await response.json();
+
+  if (data.errors) {
+    // Not an error, just no results
+    return null;
+  }
+
+  if (!data.data.books || data.data.books.length === 0) {
+    return null;
+  }
+
+  const book = data.data.books[0];
+
+  // Get ISBN from editions if available
+  const isbn13 = book.editions?.find(e => e.isbn_13)?.isbn_13 || isbn;
+  const isbn10 = book.editions?.find(e => e.isbn_10)?.isbn_10;
+
+  // Get authors
+  const authors = book.contributions?.map(c => c.author?.name) || [];
+  const author = authors[0] || 'Unknown Author';
+
+  // Extract year from release_date
+  const year = book.release_date ? parseInt(book.release_date.slice(0, 4)) : null;
+
+  // Get cover image
+  const coverUrl = book.cached_image?.url || null;
+
+  return {
+    id: book.id?.toString(),
+    source: 'hardcover',
+    key: `/hardcover/${book.id}`,
+    slug: book.slug,
+    title: book.title || 'Unknown Title',
+    subtitle: book.subtitle,
+    author,
+    authors,
+    year,
+    description: book.description,
+    coverUrl,
+    coverUrlLarge: coverUrl, // Hardcover provides high-quality images
+    isbn: isbn13 || isbn10 || isbn,
+    pageCount: book.pages,
+    categories: [],
+    subjects: book.cached_tags || [],
+    publisher: book.editions?.[0]?.publisher_name,
+    language: null,
+    ratingsAverage: book.rating,
+    ratingsCount: book.ratings_count,
+    previewLink: `https://hardcover.app/books/${book.slug || book.id}`,
+    infoLink: `https://hardcover.app/books/${book.slug || book.id}`,
   };
 }

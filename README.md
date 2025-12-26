@@ -12,8 +12,8 @@ A modern web application that uses your device's camera and OCR (Optical Charact
 
 - **📷 Camera Scanning** - Use your device camera to capture book covers or spines
 - **🔍 OCR Text Recognition** - Powered by Tesseract.js for accurate text extraction
-- **📖 Multi-Source Search** - Combines Google Books + Open Library for best results
-- **⭐ Ratings & Reviews** - See ratings from multiple sources
+- **📖 Multi-Source Search** - Combines Google Books, Hardcover, and Open Library for best results
+- **⭐ Ratings & Reviews** - See ratings from multiple sources including community ratings from Hardcover
 - **📚 Personal Library** - Save books to your personal collection (persisted locally)
 - **⚙️ Customizable Settings** - Multiple OCR languages, camera preferences, and more
 - **📱 Mobile-First Design** - Responsive UI optimized for mobile devices
@@ -77,7 +77,9 @@ book-scanner/
 │   │   └── index.js
 │   ├── services/         # API and service modules
 │   │   ├── ocr.js        # Tesseract.js OCR service
-│   │   └── openLibrary.js # Open Library API
+│   │   ├── openLibrary.js # Open Library API
+│   │   ├── hardcover.js  # Hardcover GraphQL API
+│   │   └── bookApi.js    # Unified book search API
 │   ├── styles/
 │   │   └── index.css     # Tailwind CSS styles
 │   ├── App.jsx           # Main application component
@@ -102,12 +104,33 @@ book-scanner/
 
 ## 📡 APIs Used
 
+### Google Books API
+
+- **Search**: `https://www.googleapis.com/books/v1/volumes`
+- Primary search source with excellent cover images
+- Includes ratings, reviews, and detailed book information
+- 1,000 requests/day free tier
+
+[Google Books API Documentation](https://developers.google.com/books)
+
+### Hardcover API
+
+- **GraphQL Endpoint**: `https://api.hardcover.app/v1/graphql`
+- Community-driven book database with social features
+- High-quality cover images and metadata
+- User ratings and reading statistics
+- **Note**: API is public but authentication recommended for higher rate limits
+
+[Hardcover API Documentation](https://docs.hardcover.app/api/getting-started/)
+
 ### Open Library API
 
 - **Search**: `https://openlibrary.org/search.json`
 - **Book Details**: `https://openlibrary.org/works/{id}.json`
 - **Covers**: `https://covers.openlibrary.org/b/id/{id}-{size}.jpg`
 - **Ratings**: `https://openlibrary.org/works/{id}/ratings.json`
+- Fallback search source with extensive edition metadata
+- Unlimited requests
 
 [Open Library API Documentation](https://openlibrary.org/developers/api)
 
@@ -189,28 +212,39 @@ The backend API routes are automatically deployed:
 
 | Endpoint | Description |
 |----------|-------------|
-| `/api/search?q=query` | Search books (Google Books + Open Library) |
-| `/api/isbn/9780451524935` | Look up book by ISBN |
+| `/api/search?q=query&source=combined` | Search books (Google Books + Hardcover + Open Library) |
+| `/api/search?q=query&source=google` | Search books (Google Books only) |
+| `/api/search?q=query&source=hardcover` | Search books (Hardcover only) |
+| `/api/search?q=query&source=openlibrary` | Search books (Open Library only) |
+| `/api/isbn/9780451524935` | Look up book by ISBN (tries all sources) |
 | `/api/book/google/abc123` | Get Google Books details |
 | `/api/book/works/OL123W` | Get Open Library details |
 
-## 📡 APIs Used
+## 📡 API Features
 
 ### Google Books API
 - Primary search source
-- Better cover images
+- Excellent cover images
 - Ratings and reviews
 - 1,000 requests/day free
 
+### Hardcover API
+- Community-driven book database
+- High-quality images and metadata
+- User reading statistics
+- Social features integration
+
 ### Open Library API
-- Fallback search source
-- More editions and metadata
+- Extensive book catalog
+- Multiple editions and metadata
 - Community ratings
 - Unlimited requests
 
 ## 🙏 Acknowledgments
 
-- [Open Library](https://openlibrary.org/) for providing free book data
+- [Google Books](https://books.google.com/) for comprehensive book data and API access
+- [Hardcover](https://hardcover.app/) for their excellent GraphQL API and community-driven book database
+- [Open Library](https://openlibrary.org/) for providing free and open book data
 - [Tesseract.js](https://github.com/naptha/tesseract.js) for the amazing OCR library
 - [Lucide](https://lucide.dev/) for beautiful icons
 
@@ -226,4 +260,4 @@ If you encounter any issues or have questions, please [open an issue](https://gi
 
 ---
 
-Made with ❤️ using React and Open Library
+Made with ❤️ using React, Google Books, Hardcover, and Open Library
