@@ -91,12 +91,27 @@ export async function searchBooks(query, options = {}) {
       };
     }
 
-    // Parse the results - Hardcover returns a JSON string
+    // Parse the results - Hardcover returns a Typesense search response
     let results;
     try {
-      results = typeof data.search.results === 'string'
+      const searchResults = typeof data.search.results === 'string'
         ? JSON.parse(data.search.results)
         : data.search.results;
+
+      // Hardcover uses Typesense, results are in hits[].document
+      if (searchResults.hits && Array.isArray(searchResults.hits)) {
+        results = searchResults.hits.map(hit => hit.document);
+      } else if (Array.isArray(searchResults)) {
+        // Fallback: if it's already an array of books
+        results = searchResults;
+      } else {
+        console.error('Unexpected Hardcover results structure:', searchResults);
+        return {
+          total: 0,
+          page,
+          books: [],
+        };
+      }
     } catch (parseError) {
       console.error('Failed to parse Hardcover results:', parseError);
       return {
