@@ -50,27 +50,17 @@ export async function searchByISBN(isbn) {
   // Clean ISBN (remove hyphens and spaces)
   const cleanISBN = isbn.replace(/[-\s]/g, '');
 
-  // Use the search API with ISBN query to get work data (more complete info)
-  const params = new URLSearchParams({
-    q: `isbn:${cleanISBN}`,
-    limit: '1',
-    fields: 'key,title,author_name,first_publish_year,cover_i,isbn,subject,ratings_average,ratings_count,edition_count,publisher,number_of_pages_median,language',
-  });
-
-  const response = await fetch(`${BASE_URL}/search.json?${params}`);
+  const response = await fetch(`${BASE_URL}/isbn/${cleanISBN}.json`);
 
   if (!response.ok) {
-    throw new Error(`ISBN lookup failed: ${response.status} ${response.statusText}`);
+    if (response.status === 404) {
+      return null;
+    }
+    throw new Error(`ISBN lookup failed: ${response.status}`);
   }
 
   const data = await response.json();
-
-  // Return the first result if found, otherwise null
-  if (data.docs && data.docs.length > 0) {
-    return normalizeBook(data.docs[0]);
-  }
-
-  return null;
+  return normalizeBookDetail(data);
 }
 
 /**
