@@ -151,8 +151,27 @@ async function searchHardcover(query, limit = 20) {
     throw new Error(`GraphQL error: ${data.errors[0].message}`);
   }
 
-  // Parse the results JSON string
-  const results = JSON.parse(data.data.search.results);
+  // Check if we have search results
+  if (!data.data?.search?.results) {
+    return [];
+  }
+
+  // Parse the results - Hardcover returns a JSON string
+  let results;
+  try {
+    results = typeof data.data.search.results === 'string'
+      ? JSON.parse(data.data.search.results)
+      : data.data.search.results;
+  } catch (parseError) {
+    console.error('Failed to parse Hardcover results:', parseError);
+    return [];
+  }
+
+  // Ensure results is an array
+  if (!Array.isArray(results)) {
+    console.error('Hardcover results is not an array:', results);
+    return [];
+  }
 
   return results.map((book) => normalizeHardcoverBook(book));
 }
