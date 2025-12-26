@@ -24,7 +24,7 @@ A modern web application that uses your device's camera and OCR (Optical Charact
 
 ### Prerequisites
 
-- Node.js 18+ 
+- Node.js 20+ 
 - npm or yarn
 
 ### Installation
