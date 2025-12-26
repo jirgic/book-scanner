@@ -243,10 +243,11 @@ export function useOCR() {
  */
 export function useBookSearch() {
   const { setSearchResults, setIsSearching, setSearchError } = useAppStore();
+  const searchSource = useSettingsStore((s) => s.searchSource);
 
   const searchMutation = useMutation({
     mutationFn: async (query) => {
-      const result = await bookApi.searchBooks(query, { limit: 20, source: 'all' });
+      const result = await bookApi.searchBooks(query, { limit: 20, source: searchSource });
       return result.books;
     },
     onMutate: () => {
