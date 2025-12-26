@@ -82,8 +82,39 @@ export async function searchBooks(query, options = {}) {
   try {
     const data = await graphqlRequest(graphqlQuery, variables, apiKey);
 
-    // Parse the results JSON string
-    const results = JSON.parse(data.search.results);
+    // Check if we have search results
+    if (!data?.search?.results) {
+      return {
+        total: 0,
+        page,
+        books: [],
+      };
+    }
+
+    // Parse the results - Hardcover returns a JSON string
+    let results;
+    try {
+      results = typeof data.search.results === 'string'
+        ? JSON.parse(data.search.results)
+        : data.search.results;
+    } catch (parseError) {
+      console.error('Failed to parse Hardcover results:', parseError);
+      return {
+        total: 0,
+        page,
+        books: [],
+      };
+    }
+
+    // Ensure results is an array
+    if (!Array.isArray(results)) {
+      console.error('Hardcover results is not an array:', results);
+      return {
+        total: 0,
+        page,
+        books: [],
+      };
+    }
 
     return {
       total: results.length,
