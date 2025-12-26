@@ -1,10 +1,11 @@
 /**
  * /api/search - Combined book search endpoint
- * Queries Google Books (primary) and Open Library (fallback)
+ * Queries Google Books, Open Library, and Hardcover APIs
  */
 
 const GOOGLE_BOOKS_API = 'https://www.googleapis.com/books/v1/volumes';
 const OPEN_LIBRARY_API = 'https://openlibrary.org/search.json';
+const HARDCOVER_API_URL = 'https://api.hardcover.app/v1/graphql';
 
 export default async function handler(req, res) {
   // CORS headers
@@ -35,6 +36,9 @@ export default async function handler(req, res) {
         break;
       case 'openlibrary':
         results = await searchOpenLibrary(q, limit);
+        break;
+      case 'hardcover':
+        results = await searchHardcover(q, limit);
         break;
       case 'combined':
       default:
@@ -106,28 +110,88 @@ async function searchOpenLibrary(query, limit = 20) {
 }
 
 /**
- * Combined search - Google Books primary, Open Library fallback
+ * Search Hardcover API
+ */
+async function searchHardcover(query, limit = 20) {
+  const graphqlQuery = `
+    query SearchBooks($query: String!, $perPage: Int!, $page: Int!) {
+      search(
+        query: $query
+        query_type: "books"
+        per_page: $perPage
+        page: $page
+      ) {
+        results
+      }
+    }
+  `;
+
+  const response = await fetch(HARDCOVER_API_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      query: graphqlQuery,
+      variables: {
+        query,
+        perPage: limit,
+        page: 1,
+      },
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Hardcover API error: ${response.status}`);
+  }
+
+  const data = await response.json();
+
+  if (data.errors) {
+    throw new Error(`GraphQL error: ${data.errors[0].message}`);
+  }
+
+  // Parse the results JSON string
+  const results = JSON.parse(data.data.search.results);
+
+  return results.map((book) => normalizeHardcoverBook(book));
+}
+
+/**
+ * Combined search - Google Books primary, Hardcover and Open Library fallback
  */
 async function searchCombined(query, limit = 20) {
   try {
-    // Try Google Books first
-    const googleResults = await searchGoogleBooks(query, limit);
+    // Try all sources in parallel
+    const [googleResults, hardcoverResults, openLibraryResults] = await Promise.allSettled([
+      searchGoogleBooks(query, limit),
+      searchHardcover(query, limit),
+      searchOpenLibrary(query, limit),
+    ]);
 
-    if (googleResults.length >= 5) {
-      return googleResults;
+    // Collect successful results
+    const results = [];
+
+    if (googleResults.status === 'fulfilled' && googleResults.value) {
+      results.push(...googleResults.value);
     }
 
-    // If Google has few results, also check Open Library
-    const openLibraryResults = await searchOpenLibrary(query, limit);
+    if (hardcoverResults.status === 'fulfilled' && hardcoverResults.value) {
+      results.push(...hardcoverResults.value);
+    }
+
+    if (openLibraryResults.status === 'fulfilled' && openLibraryResults.value) {
+      results.push(...openLibraryResults.value);
+    }
 
     // Merge and deduplicate by ISBN or title+author
-    const combined = mergeResults(googleResults, openLibraryResults);
+    const deduplicated = deduplicateResults(results);
 
-    return combined.slice(0, limit);
+    return deduplicated.slice(0, limit);
   } catch (error) {
-    // If Google fails, fall back to Open Library only
-    console.error('Google Books failed, falling back to Open Library:', error);
-    return searchOpenLibrary(query, limit);
+    console.error('Combined search error:', error);
+    // Return whatever we can get
+    return [];
   }
 }
 
@@ -200,23 +264,60 @@ function normalizeOpenLibraryBook(doc) {
 }
 
 /**
- * Merge results from multiple sources, removing duplicates
+ * Normalize Hardcover response
  */
-function mergeResults(primary, secondary) {
+function normalizeHardcoverBook(book) {
+  // Get ISBN from editions if available
+  const isbn13 = book.editions?.find(e => e.isbn_13)?.isbn_13 ||
+                 book.isbn_13 || null;
+  const isbn10 = book.editions?.find(e => e.isbn_10)?.isbn_10 ||
+                 book.isbn_10 || null;
+  const isbn = isbn13 || isbn10;
+
+  // Get authors
+  const authors = book.contributions?.map(c => c.author?.name || c.author) || [];
+  const author = authors[0] || 'Unknown Author';
+
+  // Extract year from release_date
+  const year = book.release_date ? parseInt(book.release_date.slice(0, 4)) : null;
+
+  // Get cover image
+  const coverUrl = book.cached_image?.url || book.image?.url || null;
+
+  return {
+    id: book.id?.toString(),
+    source: 'hardcover',
+    key: `/hardcover/${book.id}`,
+    title: book.title || 'Unknown Title',
+    subtitle: book.subtitle,
+    author,
+    authors,
+    year,
+    description: book.description,
+    coverUrl,
+    coverUrlLarge: coverUrl, // Hardcover provides high-quality images
+    isbn,
+    isbns: [isbn13, isbn10].filter(Boolean),
+    pageCount: book.pages,
+    categories: [],
+    subjects: book.cached_tags || [],
+    publisher: book.editions?.[0]?.publisher_name,
+    language: null,
+    ratingsAverage: book.rating,
+    ratingsCount: book.ratings_count,
+    previewLink: `https://hardcover.app/books/${book.slug || book.id}`,
+    infoLink: `https://hardcover.app/books/${book.slug || book.id}`,
+  };
+}
+
+/**
+ * Deduplicate results from multiple sources
+ */
+function deduplicateResults(books) {
   const seen = new Set();
   const results = [];
 
-  // Add primary results first
-  for (const book of primary) {
-    const key = getDedupeKey(book);
-    if (!seen.has(key)) {
-      seen.add(key);
-      results.push(book);
-    }
-  }
-
-  // Add secondary results that aren't duplicates
-  for (const book of secondary) {
+  for (const book of books) {
     const key = getDedupeKey(book);
     if (!seen.has(key)) {
       seen.add(key);
