@@ -5,6 +5,7 @@
 
 const GOOGLE_BOOKS_API = 'https://www.googleapis.com/books/v1/volumes';
 const OPEN_LIBRARY_API = 'https://openlibrary.org/search.json';
+const GOODREADS_API = 'https://goodreads-api-latest-updated.p.rapidapi.com';
 
 export default async function handler(req, res) {
   // CORS headers
@@ -35,6 +36,9 @@ export default async function handler(req, res) {
         break;
       case 'openlibrary':
         results = await searchOpenLibrary(q, limit);
+        break;
+      case 'goodreads':
+        results = await searchGoodreads(q, limit);
         break;
       case 'combined':
       default:
@@ -103,6 +107,42 @@ async function searchOpenLibrary(query, limit = 20) {
   const data = await response.json();
 
   return data.docs.map((doc) => normalizeOpenLibraryBook(doc));
+}
+
+/**
+ * Search Goodreads API via RapidAPI
+ */
+async function searchGoodreads(query, limit = 20) {
+  const apiKey = process.env.RAPIDAPI_KEY;
+
+  if (!apiKey) {
+    throw new Error('RAPIDAPI_KEY environment variable not set. Please add it to your .env file.');
+  }
+
+  const params = new URLSearchParams({
+    q: query,
+    page: '1',
+  });
+
+  const response = await fetch(`${GOODREADS_API}/search?${params}`, {
+    method: 'GET',
+    headers: {
+      'x-rapidapi-key': apiKey,
+      'x-rapidapi-host': 'goodreads-api-latest-updated.p.rapidapi.com',
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Goodreads API error: ${response.status}`);
+  }
+
+  const data = await response.json();
+
+  if (!data.results || !Array.isArray(data.results)) {
+    return [];
+  }
+
+  return data.results.slice(0, limit).map((book) => normalizeGoodreadsBook(book));
 }
 
 /**
@@ -196,6 +236,47 @@ function normalizeOpenLibraryBook(doc) {
     editionCount: doc.edition_count,
     previewLink: `https://openlibrary.org${doc.key}`,
     infoLink: `https://openlibrary.org${doc.key}`,
+  };
+}
+
+/**
+ * Normalize Goodreads API response
+ */
+function normalizeGoodreadsBook(book) {
+  // Extract ISBN from ISBN array if available
+  const isbn13 = book.isbn13 || book.isbn || null;
+  const isbn = isbn13 || book.isbn10 || null;
+
+  // Extract year from publication date
+  let year = null;
+  if (book.publication_date) {
+    const yearMatch = book.publication_date.match(/\d{4}/);
+    year = yearMatch ? parseInt(yearMatch[0]) : null;
+  }
+
+  return {
+    id: book.id || book.goodreads_id,
+    source: 'goodreads',
+    key: `/goodreads/${book.id || book.goodreads_id}`,
+    title: book.title || 'Unknown Title',
+    subtitle: null,
+    author: book.author || book.authors?.[0] || 'Unknown Author',
+    authors: book.authors || (book.author ? [book.author] : []),
+    year: year,
+    description: book.description || null,
+    coverUrl: book.image_url || book.small_image_url || null,
+    coverUrlLarge: book.large_image_url || book.image_url || null,
+    isbn: isbn,
+    isbns: [isbn13, book.isbn10].filter(Boolean),
+    pageCount: book.num_pages || null,
+    categories: [],
+    subjects: [],
+    publisher: book.publisher || null,
+    language: null,
+    ratingsAverage: book.average_rating ? parseFloat(book.average_rating) : null,
+    ratingsCount: book.ratings_count ? parseInt(book.ratings_count) : null,
+    previewLink: book.url || `https://www.goodreads.com/book/show/${book.id || book.goodreads_id}`,
+    infoLink: book.url || `https://www.goodreads.com/book/show/${book.id || book.goodreads_id}`,
   };
 }
 

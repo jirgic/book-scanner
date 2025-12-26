@@ -12,7 +12,7 @@ A modern web application that uses your device's camera and OCR (Optical Charact
 
 - **📷 Camera Scanning** - Use your device camera to capture book covers or spines
 - **🔍 OCR Text Recognition** - Powered by Tesseract.js for accurate text extraction
-- **📖 Multi-Source Search** - Combines Google Books + Open Library for best results
+- **📖 Multi-Source Search** - Combines Google Books, Open Library, and optional Goodreads API
 - **⭐ Ratings & Reviews** - See ratings from multiple sources
 - **📚 Personal Library** - Save books to your personal collection (persisted locally)
 - **⚙️ Customizable Settings** - Multiple OCR languages, camera preferences, and more
@@ -40,12 +40,27 @@ cd book-scanner
 npm install
 ```
 
-3. Start the development server:
+3. (Optional) Configure Goodreads API:
+
+If you want to use the Goodreads API as a search source, you'll need to get an API key from RapidAPI:
+
+- Sign up at [RapidAPI](https://rapidapi.com)
+- Subscribe to the [Goodreads API (Latest & Updated)](https://rapidapi.com/puresoft-labs-ou-puresoft-labs-ou-default/api/goodreads-api-latest-updated)
+- Copy your RapidAPI key
+- Create a `.env` file in the project root:
+
+```bash
+RAPIDAPI_KEY=your_rapidapi_key_here
+```
+
+**Note**: The Goodreads API is optional. The app works without it using Google Books and Open Library.
+
+4. Start the development server:
 ```bash
 npm run dev
 ```
 
-4. Open your browser to `http://localhost:3000`
+5. Open your browser to `http://localhost:3000`
 
 ### Building for Production
 
@@ -100,16 +115,26 @@ book-scanner/
 - **Tesseract.js** - OCR engine (WebAssembly)
 - **Lucide React** - Icon library
 
-## 📡 APIs Used
+## 📡 Book Data Sources
+
+### Google Books API
+- Primary search source for most queries
+- Rich metadata and cover images
+- No API key required
 
 ### Open Library API
-
-- **Search**: `https://openlibrary.org/search.json`
-- **Book Details**: `https://openlibrary.org/works/{id}.json`
-- **Covers**: `https://covers.openlibrary.org/b/id/{id}-{size}.jpg`
-- **Ratings**: `https://openlibrary.org/works/{id}/ratings.json`
+- Fallback and supplementary search source
+- Community-driven book database
+- No API key required
 
 [Open Library API Documentation](https://openlibrary.org/developers/api)
+
+### Goodreads API (Optional)
+- Premium book data via RapidAPI
+- Comprehensive ratings and reviews
+- Requires RapidAPI subscription
+
+[Goodreads API on RapidAPI](https://rapidapi.com/puresoft-labs-ou-puresoft-labs-ou-default/api/goodreads-api-latest-updated)
 
 ### Tesseract.js
 
@@ -179,9 +204,14 @@ vercel
 1. Push your code to GitHub
 2. Go to [vercel.com/new](https://vercel.com/new)
 3. Import your repository
-4. Click Deploy
+4. (Optional) Add environment variables:
+   - If using Goodreads API, add `RAPIDAPI_KEY` in Vercel dashboard under Settings → Environment Variables
+5. Click Deploy
 
 Your site will be available at: `https://your-project.vercel.app`
+
+**Environment Variables for Vercel**:
+- `RAPIDAPI_KEY` - Your RapidAPI key for Goodreads API (optional)
 
 ### API Endpoints
 
@@ -189,10 +219,17 @@ The backend API routes are automatically deployed:
 
 | Endpoint | Description |
 |----------|-------------|
-| `/api/search?q=query` | Search books (Google Books + Open Library) |
+| `/api/search?q=query&source=combined` | Search books (Google Books + Open Library) |
+| `/api/search?q=query&source=goodreads` | Search books using Goodreads API |
 | `/api/isbn/9780451524935` | Look up book by ISBN |
 | `/api/book/google/abc123` | Get Google Books details |
 | `/api/book/works/OL123W` | Get Open Library details |
+
+**Search Source Options**:
+- `google` - Google Books only
+- `openlibrary` - Open Library only
+- `goodreads` - Goodreads API (requires RapidAPI key)
+- `combined` (default) - Google Books + Open Library
 
 ## 📡 APIs Used
 
@@ -201,12 +238,21 @@ The backend API routes are automatically deployed:
 - Better cover images
 - Ratings and reviews
 - 1,000 requests/day free
+- No API key required
 
 ### Open Library API
 - Fallback search source
 - More editions and metadata
 - Community ratings
 - Unlimited requests
+- No API key required
+
+### Goodreads API (Optional)
+- Access to Goodreads extensive book database
+- High-quality ratings and reviews
+- Detailed book information
+- Requires RapidAPI subscription
+- [API Documentation](https://rapidapi.com/puresoft-labs-ou-puresoft-labs-ou-default/api/goodreads-api-latest-updated)
 
 ## 🙏 Acknowledgments
 
