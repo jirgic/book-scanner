@@ -4,10 +4,6 @@ import path from 'path';
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  // For GitHub Pages: set base to your repo name
-  // Change 'book-scanner' to your actual repository name
-  base: '/book-scanner/',
-  
   plugins: [react()],
   resolve: {
     alias: {

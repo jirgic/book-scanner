@@ -1,23 +1,24 @@
 # 📚 BookLens - Book Scanner App
 
-A modern web application that uses your device's camera and OCR (Optical Character Recognition) to scan book covers and spines, then searches the Open Library database for book information, ratings, and more.
+A modern web application that uses your device's camera and OCR (Optical Character Recognition) to scan book covers and spines, then searches multiple book databases for information, ratings, and more.
 
 ## 🌐 Live Demo
 
-**[Try BookLens →](https://jirgic.github.io/book-scanner/)**
+**[Try BookLens →](https://book-scanner.vercel.app)**
 
 ![BookLens Screenshot](./docs/screenshot.png)
 
 ## ✨ Features
 
 - **📷 Camera Scanning** - Use your device camera to capture book covers or spines
-- **📊 Barcode Scanner** - Scan ISBN barcodes (EAN-13, UPC) for instant book lookup
 - **🔍 OCR Text Recognition** - Powered by Tesseract.js for accurate text extraction
-- **📖 Open Library Integration** - Search millions of books with ratings and metadata
+- **📖 Multi-Source Search** - Combines Google Books + Open Library for best results
+- **⭐ Ratings & Reviews** - See ratings from multiple sources
 - **📚 Personal Library** - Save books to your personal collection (persisted locally)
-- **⚙️ Customizable Settings** - Multiple OCR languages, camera preferences, scan modes, and more
+- **⚙️ Customizable Settings** - Multiple OCR languages, camera preferences, and more
 - **📱 Mobile-First Design** - Responsive UI optimized for mobile devices
 - **🌙 Dark Theme** - Beautiful dark mode interface
+- **⚡ Serverless Backend** - API routes on Vercel Edge Functions
 
 ## 🚀 Getting Started
 
@@ -97,7 +98,6 @@ book-scanner/
 - **Zustand** - Lightweight state management
 - **TanStack Query** - Data fetching and caching
 - **Tesseract.js** - OCR engine (WebAssembly)
-- **html5-qrcode** - Barcode and QR code scanner
 - **Lucide React** - Icon library
 
 ## 📡 APIs Used
@@ -118,19 +118,6 @@ Client-side OCR using WebAssembly. Supports 100+ languages.
 [Tesseract.js Documentation](https://github.com/naptha/tesseract.js)
 
 ## ⚙️ Configuration
-
-### Scan Mode
-
-Switch between two scanning methods in Settings:
-
-- **OCR Mode** (default) - Scan book covers and spines using text recognition
-- **Barcode Mode** - Scan ISBN barcodes for instant book lookup
-
-The barcode scanner supports:
-- ISBN-13 (EAN-13) - Standard book barcodes
-- ISBN-10
-- UPC codes
-- QR codes
 
 ### OCR Languages
 
@@ -169,42 +156,62 @@ The app supports multiple OCR languages. Change the language in Settings:
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 🚀 Deploying to GitHub Pages
+## 🚀 Deploying to Vercel
 
-This project is configured for automatic deployment to GitHub Pages.
+This project is configured for one-click deployment to Vercel.
 
-### Automatic Deployment (Recommended)
+### Option 1: Deploy Button (Easiest)
 
-1. Push your code to the `main` branch
-2. Go to your repository Settings → Pages
-3. Under "Build and deployment", select **GitHub Actions**
-4. The workflow will automatically build and deploy on every push
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/YOUR_USERNAME/book-scanner)
 
-### Manual Deployment
+### Option 2: Vercel CLI
 
 ```bash
-# Install gh-pages if not already installed
-npm install -D gh-pages
+# Install Vercel CLI
+npm i -g vercel
 
-# Build and deploy
-npm run deploy
+# Deploy
+vercel
 ```
 
-### Configuration
+### Option 3: GitHub Integration
 
-Before deploying, update these files with your GitHub username:
+1. Push your code to GitHub
+2. Go to [vercel.com/new](https://vercel.com/new)
+3. Import your repository
+4. Click Deploy
 
-1. **`vite.config.js`** - Change `base: '/book-scanner/'` if your repo has a different name
-2. **`package.json`** - Update the `homepage` field
-3. **`README.md`** - Update the demo link
+Your site will be available at: `https://your-project.vercel.app`
 
-Your site will be available at: `https://YOUR_USERNAME.github.io/book-scanner/`
+### API Endpoints
+
+The backend API routes are automatically deployed:
+
+| Endpoint | Description |
+|----------|-------------|
+| `/api/search?q=query` | Search books (Google Books + Open Library) |
+| `/api/isbn/9780451524935` | Look up book by ISBN |
+| `/api/book/google/abc123` | Get Google Books details |
+| `/api/book/works/OL123W` | Get Open Library details |
+
+## 📡 APIs Used
+
+### Google Books API
+- Primary search source
+- Better cover images
+- Ratings and reviews
+- 1,000 requests/day free
+
+### Open Library API
+- Fallback search source
+- More editions and metadata
+- Community ratings
+- Unlimited requests
 
 ## 🙏 Acknowledgments
 
 - [Open Library](https://openlibrary.org/) for providing free book data
 - [Tesseract.js](https://github.com/naptha/tesseract.js) for the amazing OCR library
-- [html5-qrcode](https://github.com/mebjas/html5-qrcode) for the barcode scanning library
 - [Lucide](https://lucide.dev/) for beautiful icons
 
 ## 🐛 Known Issues
