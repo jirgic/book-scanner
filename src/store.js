@@ -111,6 +111,10 @@ export const useSettingsStore = create(
 
       autoSearch: true,
       setAutoSearch: (auto) => set({ autoSearch: auto }),
+
+      // Search Settings
+      searchSource: 'combined', // 'combined' | 'google' | 'hardcover' | 'openlibrary'
+      setSearchSource: (source) => set({ searchSource: source }),
     }),
     {
       name: 'book-scanner-settings',

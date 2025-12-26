@@ -84,6 +84,36 @@ export default function SettingsView({ onClose }) {
           </div>
         </section>
 
+        {/* Search Settings */}
+        <section>
+          <h3 className="text-sm font-medium text-dark-400 uppercase tracking-wider mb-3">
+            Search Settings
+          </h3>
+          <div className="card">
+            <div>
+              <label className="block text-sm text-dark-300 mb-2">
+                Book Database
+              </label>
+              <select
+                value={settings.searchSource}
+                onChange={(e) => settings.setSearchSource(e.target.value)}
+                className="input"
+              >
+                <option value="combined">All Sources (Combined)</option>
+                <option value="google">Google Books</option>
+                <option value="hardcover">Hardcover</option>
+                <option value="openlibrary">Open Library</option>
+              </select>
+              <p className="text-xs text-dark-500 mt-2">
+                {settings.searchSource === 'combined' && 'Search all databases and combine results'}
+                {settings.searchSource === 'google' && 'Fast, comprehensive book data with ratings'}
+                {settings.searchSource === 'hardcover' && 'Community-driven database with social features'}
+                {settings.searchSource === 'openlibrary' && 'Extensive catalog with multiple editions'}
+              </p>
+            </div>
+          </div>
+        </section>
+
         {/* Camera Settings */}
         <section>
           <h3 className="text-sm font-medium text-dark-400 uppercase tracking-wider mb-3">
@@ -144,6 +174,7 @@ export default function SettingsView({ onClose }) {
                     settings.setPreferredCamera('environment');
                     settings.setShowOcrText(true);
                     settings.setAutoSearch(true);
+                    settings.setSearchSource('combined');
                   }
                 }}
                 className="px-3 py-1.5 text-sm text-dark-400 hover:text-dark-200 hover:bg-dark-700 rounded-lg transition-colors"
@@ -169,9 +200,27 @@ export default function SettingsView({ onClose }) {
             </div>
             <p className="text-sm text-dark-400 mb-4">
               Scan book covers and spines to find book information, ratings, and
-              more using OCR and the Open Library database.
+              more using OCR and multiple book databases.
             </p>
             <div className="flex flex-wrap gap-2 text-xs">
+              <a
+                href="https://books.google.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-primary-400 hover:text-primary-300"
+              >
+                Google Books
+              </a>
+              <span className="text-dark-600">•</span>
+              <a
+                href="https://hardcover.app"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-primary-400 hover:text-primary-300"
+              >
+                Hardcover
+              </a>
+              <span className="text-dark-600">•</span>
               <a
                 href="https://openlibrary.org"
                 target="_blank"
